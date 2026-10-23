@@ -43,6 +43,7 @@ export const SystemPanelShell = memo(function SystemPanelShell({
     <div
       className={cn('h-full flex flex-col bg-background overflow-hidden', className)}
       data-section={section}
+      data-app-background-surface="transparent"
     >
       {children}
     </div>

@@ -106,7 +106,7 @@ const SftpPaneViewInner: React.FC<SftpPaneViewProps> = ({
   const isActive = forceActive || (activeTabId ? pane.id === activeTabId : true);
 
   const callbacks = useSftpPaneCallbacks(side);
-  const { draggedFiles, onDragStart, onDragEnd } = useSftpDrag();
+  const { draggedFiles, onDragStart, onDragEnd, onStartRemoteDrag } = useSftpDrag();
   const hosts = useSftpHosts();
   const connectedHosts = useSftpConnectedHosts();
   const writableHosts = useSftpWritableHosts();
@@ -384,6 +384,7 @@ const SftpPaneViewInner: React.FC<SftpPaneViewProps> = ({
     sortedDisplayFiles,
     draggedFiles,
     onDragStart,
+    onStartRemoteDrag,
     onReceiveFromOtherPane: callbacks.onReceiveFromOtherPane,
     onMoveEntriesToPath: callbacks.onMoveEntriesToPath,
     onUploadExternalFiles: handleUploadExternalFiles,
@@ -616,6 +617,11 @@ const SftpPaneViewInner: React.FC<SftpPaneViewProps> = ({
         onListDrives={callbacks.onListDrives}
       />
 
+      {pane.connection && !pane.connection.isLocal && onStartRemoteDrag && (
+        <div data-section="sftp-native-drag-hint" className="shrink-0 border-b border-border/40 px-3 py-1 text-[10px] text-muted-foreground">
+          {t('sftp.drag.hint')}
+        </div>
+      )}
       {treeEverMounted && (
         <div
           className={viewMode === 'tree' ? 'flex-1 min-h-0 flex flex-col' : 'hidden'}
@@ -632,6 +638,7 @@ const SftpPaneViewInner: React.FC<SftpPaneViewProps> = ({
             onRefresh={handleRefresh}
             onOpenEntry={callbacks.onOpenEntry}
             onDragStart={onDragStart}
+            onStartRemoteDrag={onStartRemoteDrag}
             onDragEnd={onDragEnd}
             openRenameDialog={openRenameDialog}
             openDeleteConfirm={openDeleteConfirm}

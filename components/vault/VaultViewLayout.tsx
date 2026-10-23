@@ -554,6 +554,7 @@ export function VaultViewLayout({ ctx }: { ctx: VaultViewLayoutContext }) {
       ref={rootRef}
       className="absolute inset-0 min-h-0 flex bg-secondary"
       data-section="vault-view"
+      data-app-background-surface="transparent"
     >
       {/* Sidebar */}
       <TooltipProvider delayDuration={100}>
@@ -566,6 +567,7 @@ export function VaultViewLayout({ ctx }: { ctx: VaultViewLayoutContext }) {
           )}
           style={{ width: effectiveSidebarWidth }}
           data-section="vault-sidebar"
+          data-app-background-surface="secondary"
         >
           <div
             className={cn(
@@ -852,12 +854,13 @@ export function VaultViewLayout({ ctx }: { ctx: VaultViewLayoutContext }) {
       </TooltipProvider>
 
       <div
-        className="flex min-w-0 flex-1 py-0 pr-2 pb-2 pl-0"
+        className="relative flex min-w-0 flex-1 py-0 pr-2 pb-2 pl-0"
         data-section="vault-stage"
       >
         <div
           className="relative flex min-h-0 flex-1 overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm"
           data-section="vault-surface"
+          data-app-background-surface="base"
         >
           {/* Main Area */}
           <div

@@ -509,12 +509,13 @@ export const TerminalHostTreeToolbar: React.FC<TerminalHostTreeToolbarProps> = (
           'overflow-hidden transition-[max-height,opacity] duration-200 ease-out',
           expandedPanel === 'search' ? 'max-h-9 opacity-100' : 'max-h-0 opacity-0',
         )}
+        data-app-background-surface="transparent"
         style={{
           backgroundColor: theme.termBg,
           borderBottom: expandedPanel === 'search' ? `1px solid ${theme.separator}` : undefined,
         }}
       >
-        <div className="h-9 flex items-center gap-0.5 px-1.5" style={{ backgroundColor: theme.termBg }}>
+        <div className="h-9 flex items-center gap-0.5 px-1.5" data-app-background-surface="transparent" style={{ backgroundColor: theme.termBg }}>
           <div className="relative flex-1 min-w-0">
             <Search
               size={12}
@@ -558,6 +559,7 @@ export const TerminalHostTreeToolbar: React.FC<TerminalHostTreeToolbarProps> = (
           'overflow-hidden transition-[max-height,opacity] duration-200 ease-out',
           expandedPanel === 'tags' ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0',
         )}
+        data-app-background-surface="transparent"
         style={{
           backgroundColor: theme.termBg,
           borderBottom: expandedPanel === 'tags' ? `1px solid ${theme.separator}` : undefined,
@@ -565,6 +567,7 @@ export const TerminalHostTreeToolbar: React.FC<TerminalHostTreeToolbarProps> = (
       >
         <div
           className="max-h-40 overflow-y-auto overflow-x-hidden py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          data-app-background-surface="transparent"
           style={{ backgroundColor: theme.termBg }}
         >
           {allTags.length === 0 ? (

@@ -16,6 +16,7 @@ interface UseSftpPaneDragAndSelectParams {
   sortedDisplayFiles: SftpFileEntry[];
   draggedFiles: (SftpTransferSource & { side: "left" | "right" })[] | null;
   onDragStart: SftpDragCallbacks["onDragStart"];
+  onStartRemoteDrag?: SftpDragCallbacks['onStartRemoteDrag'];
   onReceiveFromOtherPane: SftpPaneCallbacks["onReceiveFromOtherPane"];
   onMoveEntriesToPath: SftpPaneCallbacks["onMoveEntriesToPath"];
   onUploadExternalFiles?: SftpPaneCallbacks["onUploadExternalFiles"];
@@ -45,6 +46,7 @@ export const useSftpPaneDragAndSelect = ({
   sortedDisplayFiles,
   draggedFiles,
   onDragStart,
+  onStartRemoteDrag,
   onReceiveFromOtherPane,
   onMoveEntriesToPath,
   onUploadExternalFiles,
@@ -161,10 +163,11 @@ export const useSftpPaneDragAndSelect = ({
         ];
       startSftpFileDrag({ event: e, paneId: pane.id, connection: pane.connection,
         sources: files, side, onRemoteDrag: onDragStart,
+        onStartRemoteDrag,
         onError: (message) => toast.error(message, "SFTP"),
       });
     },
-    [onDragStart, pane.id, pane.connection, side],
+    [onDragStart, onStartRemoteDrag, pane.id, pane.connection, side],
   );
 
   const handleEntryDragOver = useCallback(

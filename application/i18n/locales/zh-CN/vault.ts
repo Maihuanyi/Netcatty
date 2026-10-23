@@ -1,6 +1,11 @@
 import type { Messages } from '../types';
 
 export const zhCNVaultMessages: Messages = {
+  'sftp.drag.hint': '软件内按原方式拖动；拖出软件可下载到桌面或资源管理器文件夹。',
+  'sftp.drag.copyTo': '下载到',
+  'sftp.drag.invalidTarget': '请拖到桌面或资源管理器文件夹',
+  'sftp.drag.selection': '已选择 {count} 项 · 松开开始下载',
+  'sftp.drag.queued': '正在下载 {count} 项到 {directory}',
   // Notes
   'notes.search.placeholder': '搜索笔记、主机、标签...',
   'notes.action.newNote': '新建笔记',

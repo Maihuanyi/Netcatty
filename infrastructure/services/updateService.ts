@@ -7,6 +7,7 @@
  */
 
 import { netcattyBridge } from "./netcattyBridge";
+import buildPolicy from '../../electron/shared/buildPolicy.json';
 
 // ================================
 // Part 1: GitHub API Version Check
@@ -74,6 +75,7 @@ export function compareVersions(a: string, b: string): number {
  * Used by useUpdateCheck for the notification banner.
  */
 export async function checkForUpdates(currentVersion: string): Promise<UpdateCheckResult> {
+  if (!buildPolicy.updatesEnabled) return { hasUpdate: false, currentVersion, latestRelease: null };
   try {
     const response = await fetch(GITHUB_API_URL, {
       headers: { Accept: 'application/vnd.github.v3+json' },
@@ -173,6 +175,7 @@ export interface UpdateDownloadProgress {
 }
 
 export async function checkForUpdate(): Promise<ElectronUpdateCheckResult> {
+  if (!buildPolicy.updatesEnabled) return { available: false, supported: false };
   const bridge = netcattyBridge.get();
   if (!bridge?.checkForUpdate) {
     return { available: false, supported: false, error: "Bridge unavailable" };
@@ -186,6 +189,7 @@ export async function checkForUpdate(): Promise<ElectronUpdateCheckResult> {
 }
 
 export async function downloadUpdate(): Promise<{ success: boolean; error?: string }> {
+  if (!buildPolicy.updatesEnabled) return { success: false, error: 'Updates are disabled in this customized build.' };
   const bridge = netcattyBridge.get();
   if (!bridge?.downloadUpdate) {
     return { success: false, error: "Bridge unavailable" };
@@ -194,6 +198,7 @@ export async function downloadUpdate(): Promise<{ success: boolean; error?: stri
 }
 
 export function installUpdate(): void {
+  if (!buildPolicy.updatesEnabled) return;
   const bridge = netcattyBridge.get();
   bridge?.installUpdate?.();
 }

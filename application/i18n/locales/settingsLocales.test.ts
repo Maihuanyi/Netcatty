@@ -22,6 +22,14 @@ const APP_LOCK_LOCALES = [
   { name: "ru", messages: ru },
 ];
 
+test("wallpaper controls and errors are available in every supported language", () => {
+  for (const locale of [{ name: 'en', messages: en }, ...LOCALIZED_SETTINGS_LOCALES]) {
+    for (const suffix of ['title', 'description', 'preview', 'choose', 'remove', 'enabled', 'opacity', 'error']) {
+      assert.ok(locale.messages[`settings.appearance.background.${suffix}`], `${locale.name}: ${suffix}`);
+    }
+  }
+});
+
 test("localized settings include names for every default shortcut", () => {
   for (const locale of LOCALIZED_SETTINGS_LOCALES) {
     const missing = DEFAULT_KEY_BINDINGS

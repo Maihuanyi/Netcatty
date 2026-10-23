@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 
 import { runThemeTransition, type ThemeTransitionMode } from './themeTransition';
 import { publishAppearanceChromeSnapshot } from './appearanceChromeStore';
+import { useAppBackgroundSettings } from './useAppBackgroundSettings';
 import {
   publishSettingsChromeSnapshot,
   registerSettingsChromeActions,
@@ -218,6 +219,7 @@ import {
 
 export const useSettingsState = (options: { enableSettingsSync?: boolean; enableSystemEffects?: boolean } = {}) => {
   const enableSettingsSync = options.enableSettingsSync !== false;
+  useAppBackgroundSettings(enableSettingsSync);
   const enableSystemEffects = options.enableSystemEffects !== false;
   const initialCustomKeyBindingsRecord =
     parseCustomKeyBindingsStorageRecord(localStorageAdapter.readString(STORAGE_KEY_CUSTOM_KEY_BINDINGS));

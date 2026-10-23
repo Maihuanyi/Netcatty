@@ -10,6 +10,7 @@ import React, { createContext, useContext, useMemo, useSyncExternalStore } from 
 import type { SftpConnectedHostEntry } from "../../domain/sftpConnectedHosts";
 import type { SftpConnectOptions } from "../../application/state/sftp/useSftpConnections";
 import { Host, SftpFileEntry, SftpFilenameEncoding } from "../../types";
+import type { StartRemoteFileDrag } from '../../application/state/sftp/localFileDrag';
 
 export interface SftpTransferSource {
     name: string;
@@ -74,6 +75,7 @@ export interface SftpPaneCallbacks {
 }
 
 export interface SftpDragCallbacks {
+    onStartRemoteDrag?: StartRemoteFileDrag;
     onDragStart: (files: SftpTransferSource[], side: "left" | "right") => void;
     onDragEnd: () => void;
 }

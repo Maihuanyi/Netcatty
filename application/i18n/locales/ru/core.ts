@@ -1,6 +1,14 @@
 import type { Messages } from '../types';
 
 export const ruCoreMessages: Messages = {
+  'settings.appearance.background.title': 'Фоновое изображение',
+  'settings.appearance.background.description': 'PNG или JPEG, до 10 МиБ и 40 миллионов пикселей. Хранится только на этом устройстве. Применяется к главному окну и предпросмотру настроек.',
+  'settings.appearance.background.preview': 'Предпросмотр фона',
+  'settings.appearance.background.choose': 'Выбрать / заменить изображение',
+  'settings.appearance.background.remove': 'Удалить изображение',
+  'settings.appearance.background.enabled': 'Включить фоновое изображение',
+  'settings.appearance.background.opacity': 'Непрозрачность интерфейса',
+  'settings.appearance.background.error': 'Не удалось загрузить или сохранить фон. Выберите корректный PNG/JPEG в пределах ограничений и повторите попытку.',
   // Common
   'common.save': 'Сохранить',
   'common.cancel': 'Отмена',
@@ -255,6 +263,7 @@ export const ruCoreMessages: Messages = {
   'settings.update.lastCheckedPrefix': 'Последняя проверка: ',
   'settings.update.autoUpdateEnabled': 'Автоматические обновления',
   'settings.update.autoUpdateEnabledDesc': 'Автоматически проверять и загружать обновления, когда они доступны.',
+  'settings.update.disabledForBuild': 'Обновления отключены в этой сборке, чтобы сохранить локальные изменения.',
 
   // Settings > Session Logs
   'settings.sessionLogs.title': 'Журналы сессий',

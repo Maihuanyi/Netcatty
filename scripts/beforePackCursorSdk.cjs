@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
+const { buildSftpDropTarget } = require('./build-sftp-drop-target.cjs');
 const {
   buildWindowsHelloHelper,
   normalizeWindowsHelperArch,
@@ -72,6 +73,11 @@ function beforePackCursorSdk(context = {}) {
   const projectDir = context.appDir || process.cwd();
   const platform = context.electronPlatformName || process.platform;
   const arch = normalizeWindowsHelperArch(context.arch || process.env.npm_config_arch || process.arch);
+  if (platform === "win32") {
+    // gyp writes UTF-8 project files; its second pass must read them as UTF-8
+    // even when Windows defaults to GBK and the user profile contains CJK.
+    process.env.PYTHONUTF8 = "1";
+  }
   const ensureCursor = context.ensureCursorSdkPlatformPackages || ensureCursorSdkPlatformPackages;
   ensureCursor({ projectDir, platform });
   const buildHelper = context.buildWindowsHelloHelper || buildWindowsHelloHelper;
@@ -80,6 +86,7 @@ function beforePackCursorSdk(context = {}) {
     if (result?.skipped) {
       throw new Error(`Windows Hello helper was not built: ${result.reason || "unknown"}`);
     }
+    (context.buildSftpDropTarget || buildSftpDropTarget)({ projectDir, platform, arch });
   }
 }
 

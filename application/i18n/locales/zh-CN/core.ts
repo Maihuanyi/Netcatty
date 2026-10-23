@@ -1,6 +1,14 @@
 import type { Messages } from '../types';
 
 export const zhCNCoreMessages: Messages = {
+  'settings.appearance.background.title': '背景图片',
+  'settings.appearance.background.description': '支持 PNG/JPEG，最大 10 MiB、4000 万像素。仅保存在本机，应用于主窗口和设置预览。',
+  'settings.appearance.background.preview': '背景图片预览',
+  'settings.appearance.background.choose': '选择 / 更换图片',
+  'settings.appearance.background.remove': '移除图片',
+  'settings.appearance.background.enabled': '启用背景图片',
+  'settings.appearance.background.opacity': '界面底色不透明度',
+  'settings.appearance.background.error': '无法加载或保存背景，请选择符合大小限制的有效 PNG/JPEG 图片后重试。',
   // Common
   'common.save': '保存',
   'common.cancel': '取消',
@@ -260,6 +268,7 @@ export const zhCNCoreMessages: Messages = {
   'settings.update.lastCheckedPrefix': '上次检查：',
   'settings.update.autoUpdateEnabled': '自动更新',
   'settings.update.autoUpdateEnabledDesc': '有新版本时自动检查并下载更新。',
+  'settings.update.disabledForBuild': '此定制版本已禁用更新，以保留本地修改。',
 
   // Settings > Session Restore
   'settings.sessionRestore.title': '会话恢复',

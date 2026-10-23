@@ -189,6 +189,7 @@ export const SettingCard: React.FC<SettingCardProps> = ({
   padded = false,
 }) => (
   <div
+    data-app-background-surface="transparent"
     className={cn(
       settingCardClassName,
       padded ? "p-4" : "px-4",

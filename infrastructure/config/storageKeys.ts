@@ -357,3 +357,6 @@ export const STORAGE_KEY_MONITOR_HIDDEN_COLUMNS = "netcatty_monitor_hidden_colum
 
 // Preferred application for saved terminal logs (independent of SFTP associations).
 export const STORAGE_KEY_SESSION_LOG_APPLICATION = "netcatty.sessionLogApplication";
+
+// Local-only wallpaper configuration; image bytes live in Electron userData.
+export const STORAGE_KEY_APP_BACKGROUND = 'netcatty_app_background_v1';

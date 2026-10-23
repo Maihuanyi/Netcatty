@@ -147,6 +147,12 @@ function createBridgeRegistrar(context) {
       registerPluginBridge,
     } = require("../plugins/pluginBridge.cjs");
     let terminalWorkerManager = null;
+    require("../bridges/appBackground.cjs").registerAppBackgroundHandlers({
+      ipcMain, app, BrowserWindow,
+      nativeImage: electronModule.nativeImage,
+      dialog: electronModule.dialog,
+      isTrustedSender: createTrustedPluginBridgeSender({ devServerUrl: effectiveDevServerUrl }),
+    });
     const { toElectronAccelerator } = require("../plugins/keybindings.cjs");
     const { startDevelopmentPluginHost } = require("../plugins/hostBootstrap.cjs");
     const pluginHostService = startDevelopmentPluginHost({
@@ -471,12 +477,17 @@ function createBridgeRegistrar(context) {
     require("../plugins/shutdownCoordinator.cjs").registerPluginShutdown(stopMonitoring);
     sftpBridge.registerHandlers(ipcMain, { terminalWorkerManager });
     localFsBridge.registerHandlers(ipcMain);
-    require("../bridges/localFileDragBridge.cjs").registerHandlers(ipcMain, {
+    const localFileDragTracker = require("../bridges/localFileDragBridge.cjs").registerHandlers(ipcMain, {
       getWindows: () => getWindowManager().getAppContentWindows?.() || [],
       nativeImage: electronModule.nativeImage,
       app,
     });
     transferBridge.registerHandlers(ipcMain, { terminalWorkerManager });
+    require("../bridges/sftpFileDragBridge.cjs").registerHandlers(ipcMain, {
+      getWindows: () => getWindowManager().getAppContentWindows?.() || [],
+      getGesture: localFileDragTracker.getGesture,
+      app,
+    });
     portForwardingBridge.registerHandlers(ipcMain, { terminalWorkerManager });
     if (electronModule.WebContentsView && electronModule.session?.fromPartition) {
       const { createHostBrowserManager } = require("../hostBrowser/hostBrowserManager.cjs");

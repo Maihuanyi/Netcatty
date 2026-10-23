@@ -102,6 +102,13 @@ export const SETTINGS_SEARCH_CATALOG: readonly SettingsSearchEntry[] = [
     sectionKey: "settings.appearance.language",
   },
   {
+    id: "appearance-background",
+    tab: "appearance",
+    labelKey: "settings.appearance.background.title",
+    descriptionKey: "settings.appearance.background.description",
+    keywords: ["wallpaper", "image", "background", "opacity"],
+  },
+  {
     id: "appearance-window-opacity",
     tab: "appearance",
     labelKey: "settings.appearance.windowOpacity",

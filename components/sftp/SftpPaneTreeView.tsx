@@ -46,6 +46,7 @@ export const SftpPaneTreeView = React.memo<SftpPaneTreeViewProps>(({
   onRefresh,
   onOpenEntry,
   onDragStart,
+  onStartRemoteDrag,
   onDragEnd,
   openRenameDialog,
   openDeleteConfirm,
@@ -694,9 +695,10 @@ export const SftpPaneTreeView = React.memo<SftpPaneTreeViewProps>(({
     }
     startSftpFileDrag({ event: e, paneId: pane.id, connection: pane.connection,
       sources: files, side: sideRef.current, onRemoteDrag: onDragStartRef.current,
+      onStartRemoteDrag,
       onError: (message) => toast.error(message, "SFTP"),
     });
-  }, [getActionPaths, pane.id, pane.connection, toTransferSources]);
+  }, [getActionPaths, pane.id, pane.connection, toTransferSources, onStartRemoteDrag]);
   const stableOnDragEnd = useCallback(() => onDragEndRef.current(), []);
   const applyLocalMoveMutation = useCallback((
     sourceParentPaths: string[],

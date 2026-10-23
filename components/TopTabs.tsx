@@ -1005,6 +1005,7 @@ const TopTabsInner: React.FC<TopTabsProps> = ({
   return (
     <div
       data-top-tabs-root
+      data-app-background-surface="tabs"
       data-section="top-tabs"
       className="relative w-full bg-secondary app-drag"
       style={{

@@ -2,6 +2,7 @@ import { clearTerminalBroadcastUserInput, captureTerminalBroadcastInput, isTermi
 import { stringCellWidth } from "../autocomplete/terminalStringCellWidth";
 import type { TerminalBroadcastInputOptions } from "../terminalHelpers";
 import { FitAddon } from "@xterm/addon-fit";
+import { resolveAppTerminalBackground } from "../appBackground";
 import { ImageAddon } from "@xterm/addon-image";
 import { LigaturesAddon } from "@xterm/addon-ligatures";
 import { SearchAddon } from "@xterm/addon-search";
@@ -12,7 +13,7 @@ import { supportsTerminalArchiveCommands } from "../../../domain/terminalArchive
 import { registerTerminalArchiveLinks } from "./terminalArchiveLinks";
 import { createTerminalCwdMarkers } from "./terminalCwdMarkers";
 import { isTerminalReadyForCommandInjection } from "./terminalCommandInjectionReadyRegistry";
-import { WebglAddon } from "@xterm/addon-webgl";
+import { TransparentWebglAddon as WebglAddon } from "./TransparentWebglAddon";
 import { Terminal as XTerm } from "@xterm/xterm";
 import type { RefObject } from "react";
 import {
@@ -652,6 +653,7 @@ export const createXTermRuntime = (ctx: CreateXTermRuntimeContext): XTermRuntime
     scrollback,
     // Cursor-line rendering and Unicode width handling use proposed APIs.
     allowProposedApi: true,
+    allowTransparency: true,
     drawBoldTextInBrightColors,
     minimumContrastRatio,
     smoothScrollDuration,
@@ -664,6 +666,7 @@ export const createXTermRuntime = (ctx: CreateXTermRuntimeContext): XTermRuntime
     wordSeparator,
     theme: {
       ...ctx.terminalTheme.colors,
+      background: resolveAppTerminalBackground(ctx.terminalTheme.colors.background),
       selectionBackground: ctx.terminalTheme.colors.selection,
       // Scrollbar theming (xterm 6.0) — derive from foreground color
       scrollbarSliderBackground: ctx.terminalTheme.colors.foreground + '33', // 20% opacity
@@ -737,6 +740,7 @@ export const createXTermRuntime = (ctx: CreateXTermRuntimeContext): XTermRuntime
   }
 
   term.open(ctx.container);
+  term.element?.style.setProperty('--app-terminal-background', String(term.options.theme?.background ?? ctx.terminalTheme.colors.background));
   // CompositionHelper is created in open(). Live transcription rewrites the
   // hypothesis instead of appending; commit that utterance once (#3421).
   keepLiveImeTranscriptionSingle(term);

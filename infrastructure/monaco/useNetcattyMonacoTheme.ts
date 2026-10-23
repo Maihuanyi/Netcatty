@@ -1,5 +1,6 @@
 import type { Monaco } from '@monaco-editor/react';
 import { useEffect, useState } from 'react';
+import { useAppBackground } from '../../application/state/appBackgroundStore';
 import {
   buildNetcattyMonacoThemeColors,
   getNetcattyEditorColors,
@@ -12,6 +13,7 @@ import {
 export const useNetcattyMonacoTheme = (
   monaco: Monaco | null | undefined,
 ): string => {
+  const { effectiveEnabled } = useAppBackground();
   const [isDarkTheme, setIsDarkTheme] = useState(() =>
     typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
   );
@@ -22,7 +24,7 @@ export const useNetcattyMonacoTheme = (
     if (!monaco) return;
 
     const colors = getNetcattyEditorColors(isDarkTheme);
-    const themeColors = buildNetcattyMonacoThemeColors(colors);
+    const themeColors = buildNetcattyMonacoThemeColors(colors, effectiveEnabled);
 
     monaco.editor.defineTheme(NETCATTY_MONACO_THEME_DARK, {
       base: 'vs-dark',
@@ -39,7 +41,7 @@ export const useNetcattyMonacoTheme = (
     });
 
     monaco.editor.setTheme(themeName);
-  }, [monaco, isDarkTheme, themeSignal, themeName]);
+  }, [monaco, isDarkTheme, themeSignal, themeName, effectiveEnabled]);
 
   useEffect(() => {
     if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;

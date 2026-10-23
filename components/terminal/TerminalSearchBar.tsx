@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useI18n } from '../../application/i18n/I18nProvider';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
+import { TERMINAL_SEARCH_BAR_HEIGHT } from './terminalChromeLayout';
 
 export interface TerminalSearchBarProps {
     isOpen: boolean;
@@ -92,10 +93,14 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
 
     return (
         <div
-            className="flex items-center gap-1.5 px-2 pt-0 pb-2 bg-black/50 backdrop-blur-sm"
+            className="flex items-center gap-1.5 px-2 pt-0 pb-2 backdrop-blur-sm"
+            data-app-background-surface="base"
             style={{
-                backgroundColor: 'color-mix(in srgb, var(--terminal-ui-bg, #000000) 86%, transparent)',
-            }}
+                minHeight: TERMINAL_SEARCH_BAR_HEIGHT,
+                backgroundColor: 'hsl(var(--background))',
+                '--terminal-ui-bg': 'hsl(var(--background))',
+                '--terminal-ui-fg': 'hsl(var(--foreground))',
+            } as React.CSSProperties}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
         >
@@ -118,7 +123,7 @@ export const TerminalSearchBar: React.FC<TerminalSearchBarProps> = ({
                     placeholder={t("terminal.search.placeholder")}
                     className="w-full h-6 pl-7 pr-2 text-[11px] border-none rounded placeholder:opacity-40 focus:outline-none"
                     style={{
-                        backgroundColor: 'color-mix(in srgb, var(--terminal-ui-fg, #ffffff) 5%, transparent)',
+                        backgroundColor: 'hsl(var(--secondary))',
                         color: 'var(--terminal-ui-fg, #ffffff)',
                     }}
                 />

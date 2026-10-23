@@ -1,6 +1,14 @@
 import type { Messages } from '../types';
 
 export const esCoreMessages: Messages = {
+  'settings.appearance.background.title': 'Imagen de fondo',
+  'settings.appearance.background.description': 'PNG o JPEG, hasta 10 MiB y 40 millones de píxeles. Solo se guarda en este dispositivo. Se aplica a la ventana principal y a la vista previa de ajustes.',
+  'settings.appearance.background.preview': 'Vista previa del fondo',
+  'settings.appearance.background.choose': 'Elegir / reemplazar imagen',
+  'settings.appearance.background.remove': 'Eliminar imagen',
+  'settings.appearance.background.enabled': 'Activar imagen de fondo',
+  'settings.appearance.background.opacity': 'Opacidad de la interfaz',
+  'settings.appearance.background.error': 'No se pudo cargar o guardar el fondo. Elige un PNG/JPEG válido dentro de los límites e inténtalo de nuevo.',
   // Common
   'common.save': 'Guardar',
   'common.cancel': 'Cancelar',
@@ -171,6 +179,7 @@ export const esCoreMessages: Messages = {
   'settings.update.lastCheckedPrefix': 'Última comprobación: ',
   'settings.update.autoUpdateEnabled': 'Actualizaciones automáticas',
   'settings.update.autoUpdateEnabledDesc': 'Comprueba y descarga actualizaciones automáticamente cuando estén disponibles.',
+  'settings.update.disabledForBuild': 'Las actualizaciones están desactivadas en esta versión personalizada para conservar las modificaciones locales.',
 
   // Settings > Session Restore
   'settings.sessionRestore.title': 'Restauración de sesión',

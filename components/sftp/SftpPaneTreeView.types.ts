@@ -1,6 +1,6 @@
 import type { SftpFileEntry } from '../../types';
 import type { SftpPane } from '../../application/state/sftp/types';
-import type { SftpTransferSource } from './SftpContext';
+import type { SftpTransferSource, SftpDragCallbacks } from './SftpContext';
 import type { UseSftpPaneSortingResult } from '../../application/state/sftp/useSftpPaneSorting';
 
 export interface SftpPaneTreeViewProps {
@@ -14,6 +14,7 @@ export interface SftpPaneTreeViewProps {
   onRefresh: () => void;
   onOpenEntry: (entry: SftpFileEntry, fullPath?: string) => void;
   onDragStart: (files: SftpTransferSource[], side: 'left' | 'right') => void;
+  onStartRemoteDrag?: SftpDragCallbacks['onStartRemoteDrag'];
   onDragEnd: () => void;
   openRenameDialog: (entryPath: string) => void;
   openDeleteConfirm: (targets: string[]) => void;

@@ -28,6 +28,8 @@ import {
 } from '../ui/dialog';
 import { TerminalSelectionAIOverlay } from './TerminalSelectionAIOverlay';
 import { getHistoryPreviewSelectionFromRoot } from './runtime/terminalHistoryScrollOverride';
+import { TerminalPaddingBackground } from './TerminalPaddingBackground';
+import { TERMINAL_TOOLBAR_HEIGHT, TERMINAL_SEARCH_BAR_HEIGHT } from './terminalChromeLayout';
 
 type TerminalViewContext = Record<string, any>;
 type HostLineTimestampToggle = {
@@ -338,7 +340,9 @@ export function resolveTerminalTopOffsets({
   terminalBodyInset?: number;
   networkDeviceTipHeight?: number;
 }): { toolbarOffset: number; contentTop: string } {
-  const toolbarOffset = isSearchOpen ? 64 : showHostInfoBar ? 30 : 0;
+  const toolbarOffset = isSearchOpen
+    ? TERMINAL_TOOLBAR_HEIGHT + TERMINAL_SEARCH_BAR_HEIGHT
+    : showHostInfoBar ? TERMINAL_TOOLBAR_HEIGHT : 0;
   return {
     toolbarOffset,
     // The tip strip stacks directly below the toolbar, so the terminal
@@ -620,6 +624,7 @@ function TerminalViewInner({ ctx, isPaneMagnified = false }: { ctx: TerminalView
           "relative h-full w-full flex min-h-0 overflow-hidden",
           isComposeBarOpen && !inWorkspace && "flex-col"
         )}
+        data-app-background-surface="transparent"
         style={{
           ...terminalPreviewVars,
           backgroundColor: 'var(--terminal-ui-bg)',
@@ -661,14 +666,14 @@ function TerminalViewInner({ ctx, isPaneMagnified = false }: { ctx: TerminalView
           {(() => {
             const isCompactActionsMode = !showHostInfoBar && !isSearchOpen;
             const toolbarSurfaceStyle = {
-              backgroundColor: 'var(--terminal-ui-bg)',
-              color: 'var(--terminal-ui-fg)',
-              borderColor: 'var(--terminal-ui-border)',
-              ['--terminal-toolbar-fg' as never]: 'var(--terminal-ui-fg)',
-              ['--terminal-toolbar-bg' as never]: 'var(--terminal-ui-bg)',
-              ['--terminal-toolbar-btn' as never]: 'var(--terminal-ui-toolbar-btn)',
-              ['--terminal-toolbar-btn-hover' as never]: 'var(--terminal-ui-toolbar-btn-hover)',
-              ['--terminal-toolbar-btn-active' as never]: 'var(--terminal-ui-toolbar-btn-active)',
+              backgroundColor: 'hsl(var(--background))',
+              color: 'hsl(var(--foreground))',
+              borderColor: 'hsl(var(--border))',
+              ['--terminal-toolbar-fg' as never]: 'hsl(var(--foreground))',
+              ['--terminal-toolbar-bg' as never]: 'hsl(var(--background))',
+              ['--terminal-toolbar-btn' as never]: 'hsl(var(--secondary))',
+              ['--terminal-toolbar-btn-hover' as never]: 'hsl(var(--accent))',
+              ['--terminal-toolbar-btn-active' as never]: 'hsl(var(--primary) / 0.2)',
             } as React.CSSProperties;
 
             const terminalActionsBody = (
@@ -956,10 +961,11 @@ function TerminalViewInner({ ctx, isPaneMagnified = false }: { ctx: TerminalView
                           compactActionsOpen && "opacity-100",
                         )}
                         style={{
-                          backgroundColor: 'var(--terminal-ui-bg)',
-                          borderColor: 'var(--terminal-ui-border)',
-                          color: 'var(--terminal-ui-fg)',
+                          backgroundColor: 'hsl(var(--background))',
+                          borderColor: 'hsl(var(--border))',
+                          color: 'hsl(var(--foreground))',
                         }}
+                        data-app-background-surface="base"
                         aria-label={t("terminal.toolbar.showActions")}
                         aria-expanded={compactActionsOpen}
                         aria-controls={`terminal-actions-${sessionId}`}
@@ -990,6 +996,7 @@ function TerminalViewInner({ ctx, isPaneMagnified = false }: { ctx: TerminalView
                           compactChromeClass,
                         )}
                         data-host-info-visible="false"
+                        data-app-background-surface="base"
                         style={toolbarSurfaceStyle}
                       >
                         {terminalActionsBody}
@@ -1010,8 +1017,9 @@ function TerminalViewInner({ ctx, isPaneMagnified = false }: { ctx: TerminalView
                     : "ml-auto w-fit rounded-bl-md px-1 pointer-events-auto",
                 )}
                 data-host-info-visible={showHostInfoBar ? "true" : "false"}
+                data-app-background-surface="base"
                 data-section="terminal-toolbar"
-                style={toolbarSurfaceStyle}
+                style={{ ...toolbarSurfaceStyle, minHeight: TERMINAL_TOOLBAR_HEIGHT }}
               >
                 {terminalActionsBody}
               </div>
@@ -1037,8 +1045,10 @@ function TerminalViewInner({ ctx, isPaneMagnified = false }: { ctx: TerminalView
             "flex-1 min-h-0 min-w-0 relative overflow-hidden",
             showHostInfoBar && "pt-8",
           )}
+          data-app-background-surface="transparent"
           style={{ backgroundColor: 'var(--terminal-ui-bg)' }}
         >
+          <TerminalPaddingBackground top={terminalToolbarOffset + (showNetworkDeviceTip ? NETWORK_DEVICE_TIP_HEIGHT : 0)} />
           {showNetworkDeviceTip && (
             <div
               className="absolute left-0 z-20 flex items-center gap-2 px-3 border-b border-border/60 bg-card/95 backdrop-blur-sm text-[11px]"
@@ -1072,6 +1082,7 @@ function TerminalViewInner({ ctx, isPaneMagnified = false }: { ctx: TerminalView
           <div
             ref={containerRef}
             className="xterm-container absolute"
+            data-app-background-surface="transparent"
             data-font-smoothing={terminalSettings?.fontSmoothing !== false ? "true" : "false"}
             style={{
               top: terminalContentTop,

@@ -10,6 +10,9 @@ import type { FileOpenerType, SystemAppInfo } from "../../../lib/sftpFileUtils";
 import { formatFileSize, formatDate } from '../../../application/state/sftp/utils';
 import { isSessionError } from "../../../application/state/sftp/errors";
 import { filterHiddenFiles } from "../utils";
+import { useSftpFileDrag } from '../../../application/state/sftp/useSftpFileDrag';
+import { toast } from '../../ui/toast';
+import { netcattyBridge } from '../../../infrastructure/services/netcattyBridge';
 
 interface UseSftpViewPaneCallbacksParams {
   sftpRef: MutableRefObject<SftpStateApi>;
@@ -51,6 +54,13 @@ export const useSftpViewPaneCallbacks = ({
   listDrives,
 }: UseSftpViewPaneCallbacksParams) => {
   const paneActions = useSftpViewPaneActions({ sftpRef, t });
+  const startRemoteDrag = useSftpFileDrag(sftpRef, { t,
+    onQueued: (directory, count) => toast.info(t('sftp.drag.queued', { directory, count }), 'SFTP'),
+    onError: message => toast.error(message, 'SFTP'),
+  });
+  const onStartRemoteDrag = netcattyBridge.get()?.startSftpFileDrag ? startRemoteDrag : undefined;
+  const dragCallbacks = useMemo(() => ({ ...paneActions.dragCallbacks, onStartRemoteDrag }),
+    [paneActions.dragCallbacks, onStartRemoteDrag]);
   const fileOps = useSftpViewFileOps({
     sftpRef,
     behaviorRef,
@@ -216,7 +226,7 @@ export const useSftpViewPaneCallbacks = ({
   return {
     leftCallbacks,
     rightCallbacks,
-    dragCallbacks: paneActions.dragCallbacks,
+    dragCallbacks,
     draggedFiles: paneActions.draggedFiles,
     permissionsState: fileOps.permissionsState,
     setPermissionsState: fileOps.setPermissionsState,

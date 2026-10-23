@@ -1,6 +1,7 @@
 import type { Terminal } from '@xterm/xterm';
 import type { TerminalTheme } from '../../domain/models';
 import { forceSyncRenderAfterResize } from './terminalHelpers';
+import { resolveAppTerminalBackground } from './appBackground';
 
 type PendingUpdate = {
   theme: TerminalTheme;
@@ -15,8 +16,11 @@ function themeFingerprint(theme: TerminalTheme): string {
 }
 
 function applyThemeToTerminal(term: Terminal, theme: TerminalTheme): void {
+  const background = resolveAppTerminalBackground(theme.colors.background);
+  term.element?.style.setProperty('--app-terminal-background', background);
   term.options.theme = {
     ...theme.colors,
+    background,
     selectionBackground: theme.colors.selection,
     scrollbarSliderBackground: theme.colors.foreground + '33',
     scrollbarSliderHoverBackground: theme.colors.foreground + '66',

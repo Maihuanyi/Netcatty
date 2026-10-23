@@ -1,6 +1,101 @@
 @import "tailwindcss";
 @import "@mdxeditor/editor/style.css";
 
+/* Wallpaper belongs to the window shell. Only named layout surfaces opt in;
+   popup menus, inputs and dialog portals keep their normal opaque colors. */
+.netcatty-app-background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+[data-app-background="enabled"] {
+  --app-background-weight: calc(var(--app-background-opacity) * 100%);
+}
+
+.settings-window[data-app-background="enabled"] > .netcatty-app-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: hsl(var(--background) / var(--app-background-opacity));
+}
+
+[data-app-background="enabled"][data-app-background-surface="base"],
+[data-app-background="enabled"] [data-app-background-surface="base"],
+[data-app-background="enabled"] [data-section="terminal-host-tree-sidebar"],
+[data-app-background="enabled"] [data-section="terminal-workspace-sidebar"],
+[data-app-background="enabled"] [data-section="terminal-side-panel"] {
+  background-color: color-mix(in srgb, hsl(var(--background)) var(--app-background-weight), transparent) !important;
+}
+
+[data-app-background="enabled"] [data-app-background-surface="secondary"] {
+  background-color: color-mix(in srgb, hsl(var(--secondary)) var(--app-background-weight), transparent) !important;
+}
+
+[data-app-background="enabled"] [data-app-background-surface="tabs"] {
+  background-color: color-mix(in srgb, var(--top-tabs-bg, hsl(var(--secondary))) var(--app-background-weight), transparent) !important;
+}
+
+[data-app-background="enabled"] [data-app-background-surface="transparent"],
+[data-app-background="enabled"] [data-section="terminal-split-pane"],
+[data-app-background="enabled"] [data-section="terminal-host-tree-sidebar-shell"],
+[data-app-background="enabled"] [data-section="terminal-host-tree-sidebar-content"],
+[data-app-background="enabled"] [data-section="terminal-host-tree-toolbar"],
+[data-app-background="enabled"] [data-section="ai-chat-panel"],
+[data-app-background="enabled"] [data-section="ai-chat-panel-preparing"],
+[data-app-background="enabled"] [data-section="history-panel"],
+[data-app-background="enabled"] [data-section="snippets-panel"],
+[data-app-background="enabled"] [data-section="terminal-sftp-panel"],
+[data-app-background="enabled"] [data-section="terminal-side-panel-tabs"] {
+  background-color: transparent !important;
+}
+
+.terminal-padding-background {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+[data-app-background="enabled"] .terminal-padding-background {
+  display: block;
+  background-color: color-mix(in srgb, var(--terminal-ui-bg) var(--app-background-weight), transparent) !important;
+}
+
+[data-app-background="enabled"] [data-section="terminal-timestamp-gutter"] {
+  background-color: transparent !important;
+}
+
+/* Tint the Vault stage's outer spacing without adding another background
+   beneath its already tinted content. Borders meet without alpha overlap. */
+[data-app-background="enabled"] [data-section="vault-stage"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-style: solid;
+  border-width: 0 8px 8px 0;
+  border-color: color-mix(in srgb, hsl(var(--secondary)) var(--app-background-weight), transparent);
+}
+
+/* xterm paints its default background on both the terminal and scrollable
+   wrapper. WebGL also paints it on the canvas. Keep exactly one layer. */
+[data-app-background="enabled"] .xterm,
+[data-app-background="enabled"] .xterm .xterm-scrollable-element,
+[data-app-background="enabled"] .xterm .xterm-viewport {
+  background-color: transparent !important;
+}
+
+[data-app-background="enabled"] .xterm:has(.xterm-rows) .xterm-screen {
+  background-color: var(--app-terminal-background);
+}
+
 /* Bundled icon-only fallback so terminals show Nerd Font glyphs (powerline,
    devicons, etc.) regardless of which base font the user picks. The font is
    referenced near the end of the fontFamily fallback chain composed by

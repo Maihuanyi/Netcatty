@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useMemo, useState } from "react";
 import { applyCustomCssToDocument } from "../../../lib/customCss";
 import { DebouncedTextarea } from "../DebouncedTextarea";
+import { AppBackgroundSettingsCard } from "./AppBackgroundSettingsCard";
 import { Check, HelpCircle, Monitor, Moon, Palette, Sun } from "lucide-react";
 import { useI18n } from "../../../application/i18n/I18nProvider";
 import { useStoredBoolean } from "../../../application/state/useStoredBoolean";
@@ -236,6 +237,7 @@ function SettingsAppearanceTab(props: {
 
   return (
     <SettingsTabContent value="appearance">
+      <AppBackgroundSettingsCard />
       <SectionHeader title={t("settings.appearance.language")} />
       <div className="space-y-0 divide-y divide-border rounded-lg border bg-card px-4">
         <SettingRow

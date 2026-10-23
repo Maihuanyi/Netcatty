@@ -7,6 +7,8 @@ import {
   scheduleTerminalThemeUpdate,
 } from './terminalThemeScheduler';
 import type { TerminalTheme } from '../../domain/models';
+import { DEFAULT_APP_BACKGROUND } from '../../domain/appBackground';
+import { publishAppBackground } from '../../application/state/appBackgroundStore';
 
 const theme = (id: string): TerminalTheme => ({
   id,
@@ -79,4 +81,24 @@ test('hidden terminal theme updates do not wait for browser idle time', async ()
 
   await Promise.resolve();
   assert.equal(fakeTerm.options.theme.background, '#111111');
+});
+
+test('theme updates retain wallpaper alpha and restore the original palette when disabled', async () => {
+  const palette = theme('wallpaper');
+  const fakeTerm = { options: { theme: {} as Record<string, string> } };
+  const snapshot = { settings: { ...DEFAULT_APP_BACKGROUND, surfaceOpacity: 0.5 }, imageUrl: 'data:image/png;base64,test', effectiveEnabled: true, busy: false, error: false };
+  try {
+    publishAppBackground(snapshot);
+    scheduleTerminalThemeUpdate('wallpaper', palette, { visible: false, focused: false }, () => fakeTerm as never);
+    await Promise.resolve();
+    assert.equal(fakeTerm.options.theme.background, '#11111180');
+    assert.equal(fakeTerm.options.theme.foreground, palette.colors.foreground);
+    assert.equal(palette.colors.background, '#111111');
+    publishAppBackground({ ...snapshot, effectiveEnabled: false });
+    scheduleTerminalThemeUpdate('wallpaper', palette, { visible: false, focused: false }, () => fakeTerm as never);
+    await Promise.resolve();
+    assert.equal(fakeTerm.options.theme.background, '#111111');
+  } finally {
+    publishAppBackground({ ...snapshot, settings: DEFAULT_APP_BACKGROUND, imageUrl: null, effectiveEnabled: false });
+  }
 });

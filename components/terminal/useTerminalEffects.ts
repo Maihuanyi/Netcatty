@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useRef } from 'react';
+import { getAppBackgroundSnapshot, subscribeAppBackground } from '../../application/state/appBackgroundStore';
 import type { TerminalSettings } from '../../types';
 import { publishPluginTerminalRuntimeLifecycleEvent } from '../../application/state/pluginTerminalRuntimeLifecycle';
 import { markTerminalCommandCompletionPending } from './runtime/promptLineBreak';
@@ -1131,6 +1132,22 @@ export function useTerminalEffects(ctx: TerminalEffectsContext) {
     }
   }, [status]);
 
+
+  // Subscribe imperatively so a slider drag updates xterm without rebuilding its React tree.
+  const backgroundThemeRef = useRef(effectiveTheme);
+  backgroundThemeRef.current = effectiveTheme;
+  useLayoutEffect(() => {
+    let previous = getAppBackgroundSnapshot();
+    return subscribeAppBackground(() => {
+      const next = getAppBackgroundSnapshot();
+      const changed = next.effectiveEnabled !== previous.effectiveEnabled
+        || next.settings.surfaceOpacity !== previous.settings.surfaceOpacity;
+      previous = next;
+      if (!changed || !termRef.current) return;
+      cancelTerminalThemeUpdate(sessionId);
+      applyTerminalThemeSync(termRef.current, backgroundThemeRef.current);
+    });
+  }, [sessionId]);
 
   const effectiveThemeKey = `${effectiveTheme.id}:${effectiveTheme.colors.background}:${effectiveTheme.colors.foreground}:${effectiveTheme.colors.foregroundIntense ?? ""}:${effectiveTheme.colors.cursor}`;
 

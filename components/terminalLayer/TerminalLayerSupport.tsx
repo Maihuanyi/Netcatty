@@ -13,6 +13,7 @@ import { useAIState } from '../../application/state/useAIState';
 import { useAISessionsStore } from '../../application/state/aiSessionsStore';
 import { useStoredBoolean } from '../../application/state/useStoredBoolean';
 import { isSavedVaultHost } from '../../domain/ephemeralHosts';
+import { alignTerminalPaneRect } from '../../domain/terminalPaneGeometry';
 import {
   buildAITerminalSessionInfo,
   type AIPanelContext,
@@ -1332,12 +1333,16 @@ const TerminalPane: React.FC<TerminalPaneProps> = memo(({
   const rect = layoutWorkspaceId && usesSplitLayout
     ? workspaceRectsById.get(layoutWorkspaceId)?.[session.id] ?? null
     : null;
-  const layoutStyle = rect
+  // Fractional split origins offset the canvas from its complementary margin
+  // mask, exposing an antialiased wallpaper seam at the right pane's left edge.
+  // Snap shared edges once; independently rounding widths can leave a gap.
+  const paintedRect = rect ? alignTerminalPaneRect(rect) : null;
+  const layoutStyle = paintedRect
     ? {
-      left: `${rect.x}px`,
-      top: `${rect.y}px`,
-      width: `${rect.w}px`,
-      height: `${rect.h}px`,
+      left: `${paintedRect.x}px`,
+      top: `${paintedRect.y}px`,
+      width: `${paintedRect.w}px`,
+      height: `${paintedRect.h}px`,
     }
     : { left: 0, top: 0, width: '100%', height: '100%' };
   const livePaneLayoutKey = usesSplitLayout && rect

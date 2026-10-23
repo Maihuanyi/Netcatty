@@ -45,6 +45,16 @@ test('buildNetcattyMonacoThemeColors still maps core editor chrome from app colo
   assert.equal(colors['editor.selectionBackground'], `${sampleColors.primary}40`);
 });
 
+test('wallpaper makes editor surfaces transparent while keeping popup widgets readable', () => {
+  const colors = buildNetcattyMonacoThemeColors(sampleColors, true);
+  for (const key of ['editor.background', 'editorGutter.background', 'minimap.background']) {
+    assert.equal(colors[key], '#00000000');
+  }
+  assert.equal(colors['editorWidget.background'], sampleColors.card);
+  assert.equal(colors['input.background'], sampleColors.card);
+  assert.equal(buildNetcattyMonacoThemeColors(sampleColors)['editor.background'], sampleColors.bg);
+});
+
 test('buildNetcattyMonacoThemeColors softens matching bracket highlight', () => {
   const colors = buildNetcattyMonacoThemeColors(sampleColors);
 

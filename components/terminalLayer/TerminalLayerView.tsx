@@ -24,6 +24,7 @@ function TerminalLayerViewInner({ ctx }: { ctx: TerminalLayerViewContext }) {
       ref={ctx.workspaceOuterRef}
       className={`absolute inset-0 bg-background flex min-h-0${isBottomDock ? ' flex-col' : ''}`}
       data-section="terminal-workspace"
+      data-app-background-surface="transparent"
       inert={ctx.isTerminalLayerVisible ? undefined : true}
       style={{
         ...surfaceStyle,

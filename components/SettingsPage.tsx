@@ -15,6 +15,7 @@ import { sanitizePortForwardingRulesForSync } from "../application/syncPayload";
 import type { AppLockGateRenderContext } from "./AppLockGate";
 import { toast } from "./ui/toast";
 import { SettingsTabContent } from "./settings/settings-ui";
+import { AppBackgroundLayer } from "./AppBackgroundLayer";
 import { SettingsFocusProvider, useSettingsFocus } from "./settings/SettingsFocusContext";
 import { SettingsSearchControl } from "./settings/SettingsSearchControl";
 import { cancelSettingsFocus, focusSettingsAnchor } from "./settings/settingsFocus";
@@ -427,7 +428,8 @@ const SettingsPageContent: React.FC<{ settings: SettingsState; appLock?: AppLock
 
     return (
         <>
-        <div className="settings-window h-screen flex flex-col bg-background text-foreground font-sans">
+        <div className="settings-window relative isolate h-screen flex flex-col bg-background text-foreground font-sans" data-app-background-surface="transparent">
+            <AppBackgroundLayer />
             <div className="shrink-0 border-b border-border app-drag">
                 <div className="flex items-center justify-between px-4 pt-3">
                     {isMac && <div className="h-6" />}

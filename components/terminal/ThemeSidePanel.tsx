@@ -302,6 +302,7 @@ const ThemeSidePanelInner: React.FC<ThemeSidePanelProps> = ({
     <>
       <div
         className="h-full flex flex-col overflow-hidden"
+        data-app-background-surface="transparent"
         style={{
           ...panelVars,
           backgroundColor: 'var(--terminal-panel-bg)',

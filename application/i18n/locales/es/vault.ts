@@ -1,6 +1,11 @@
 import type { Messages } from '../types';
 
 export const esVaultMessages: Messages = {
+  'sftp.drag.hint': 'Arrastra dentro de Netcatty como siempre, o fuera para descargar al escritorio o a una carpeta del Explorador.',
+  'sftp.drag.copyTo': 'Descargar en',
+  'sftp.drag.invalidTarget': 'Mueve al escritorio o a una carpeta del Explorador',
+  'sftp.drag.selection': '{count} seleccionados · Suelta para descargar',
+  'sftp.drag.queued': 'Descargando {count} elemento(s) en {directory}',
   // Notes
   'notes.search.placeholder': 'Buscar notas, hosts, etiquetas...',
   'notes.action.newNote': 'Nueva nota',

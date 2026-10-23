@@ -1584,6 +1584,7 @@ export const NotesManager: React.FC<NotesManagerProps> = ({
               "relative flex min-w-0 flex-col bg-background",
               isSidebarMode ? "flex-1" : "shrink-0 border-r border-border/60",
             )}
+            data-app-background-surface="transparent"
             style={isSidebarMode ? undefined : { width: treeWidth }}
           >
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -1787,6 +1788,7 @@ export const NotesManager: React.FC<NotesManagerProps> = ({
             // width is driven from the DOM during resize.
             isTreeResizing && "pointer-events-none",
           )}
+          data-app-background-surface="transparent"
         >
           {selectedNoteView ? (
             <>

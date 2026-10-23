@@ -94,8 +94,11 @@ const FIND_MATCH_OVERVIEW = '#E8C54799';
 
 export const buildNetcattyMonacoThemeColors = (
   colors: NetcattyEditorColors,
+  transparent = false,
 ): Record<string, string> => ({
-  'editor.background': colors.bg,
+  'editor.background': transparent ? '#00000000' : colors.bg,
+  'editorGutter.background': transparent ? '#00000000' : colors.bg,
+  'minimap.background': transparent ? '#00000000' : colors.bg,
   'editor.foreground': colors.fg,
   'editorCursor.foreground': colors.primary,
   'editor.selectionBackground': `${colors.primary}40`,

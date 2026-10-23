@@ -21,7 +21,8 @@ function createIpcMainStub() {
     handle(channel, handler) {
       this.handlers.set(channel, handler);
     },
-    on() {},
+    listeners: new Map(),
+    on(channel, handler) { this.listeners.set(channel, handler); },
   };
 }
 
@@ -44,6 +45,8 @@ function createBridgeRegistrarForTest({
   sshBridge = null,
   terminalBridge = null,
   electronModuleOverrides = {},
+  appWindows = [],
+  sftpBridgeOverride = sftpBridge,
 }) {
   const noopBridge = createNoopBridge();
   const tempDirBridge = {
@@ -84,7 +87,7 @@ function createBridgeRegistrarForTest({
     CLOUD_SYNC_PASSWORD_FILE: "cloud-sync-password",
     getCliDiscoveryFilePath: () => path.join(tempDir, "cli-discovery.json"),
     sshBridge: sshBridge || { ...noopBridge, ensureMoshStatsConnection() {} },
-    sftpBridge,
+    sftpBridge: sftpBridgeOverride,
     localFsBridge: noopBridge,
     transferBridge,
     portForwardingBridge: noopBridge,
@@ -105,7 +108,7 @@ function createBridgeRegistrarForTest({
     getAutoUpdateBridge: () => noopBridge,
     getAiBridge: () => noopBridge,
     getHttpNetworkProxyBridge: () => noopBridge,
-    getWindowManager: () => ({}),
+    getWindowManager: () => ({ getAppContentWindows: () => appWindows }),
     getVaultBackupBridge: () => noopBridge,
     isPathInside: () => true,
   });

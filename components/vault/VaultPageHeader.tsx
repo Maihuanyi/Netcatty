@@ -23,6 +23,7 @@ export function VaultPageHeader({
         className,
       )}
       data-section={dataSection}
+      data-app-background-surface="transparent"
     >
       <div
         className={cn(

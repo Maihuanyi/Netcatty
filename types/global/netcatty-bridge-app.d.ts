@@ -1,6 +1,9 @@
 
 declare global {
   interface NetcattyBridge {
+    importAppBackground?(): Promise<{ imageId: string } | null>;
+    loadAppBackground?(imageId: string): Promise<string | null>;
+    removeAppBackground?(imageId: string): Promise<void>;
     // Auto-update
     checkForUpdate?(): Promise<{
       available: boolean;

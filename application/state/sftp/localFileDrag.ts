@@ -1,4 +1,5 @@
 import { netcattyBridge } from "../../../infrastructure/services/netcattyBridge";
+import { setSftpFileDragPreview } from "../../../infrastructure/services/sftpFileDragBridge";
 import { joinPath } from "./utils";
 
 export interface LocalDragSource {
@@ -17,7 +18,17 @@ interface DragSession {
   paths: string[];
   sources: LocalDragSource[];
   started?: boolean;
+  remote?: boolean;
 }
+
+export type StartRemoteFileDrag = (request: {
+  requestId: string;
+  paneId: string;
+  connectionId: string;
+  sources: Omit<LocalDragSource, 'side'>[];
+  side: 'left' | 'right';
+  isCurrent: () => boolean;
+}) => Promise<void>;
 
 // Windows separators can differ between the SFTP UI and Electron webUtils.
 // POSIX backslashes, whitespace, and case must remain significant.
@@ -56,6 +67,7 @@ export function clearLocalFileDrag(requestId?: string) {
   detach?.();
   detach = undefined;
   if (previous) netcattyBridge.get()?.cancelLocalFileDrag?.(previous.requestId);
+  if (previous?.remote) netcattyBridge.get()?.cancelSftpFileDrag?.(previous.requestId);
 }
 
 export function clearLocalFileDragForPane(paneId: string) {
@@ -69,6 +81,8 @@ function observeGestureEnd() {
   // on the next physical input/focus transition, including Escape and returning
   // after a drop outside the window. Never retain state into a new gesture.
   const clear = () => clearLocalFileDrag();
+  // Destination gestures must remain active while crossing external windows.
+  const blur = () => { if (!state.session?.remote) clear(); };
   const key = (event: KeyboardEvent) => { if (event.key === "Escape") clear(); };
   const move = (event: MouseEvent) => { if (state.session?.started && event.buttons === 0) clear(); };
   const drop = () => {
@@ -82,7 +96,7 @@ function observeGestureEnd() {
   window.addEventListener("mousedown", clear, true);
   window.addEventListener("mousemove", move, true);
   window.addEventListener("keydown", key, true);
-  window.addEventListener("blur", clear);
+  window.addEventListener("blur", blur);
   window.addEventListener("pagehide", clear);
   window.addEventListener("drop", drop, true);
   detach = () => {
@@ -90,62 +104,74 @@ function observeGestureEnd() {
     window.removeEventListener("mousedown", clear, true);
     window.removeEventListener("mousemove", move, true);
     window.removeEventListener("keydown", key, true);
-    window.removeEventListener("blur", clear);
+    window.removeEventListener("blur", blur);
     window.removeEventListener("pagehide", clear);
     window.removeEventListener("drop", drop, true);
   };
 }
 
-type DragEventLike = Pick<DragEvent, "dataTransfer" | "preventDefault">;
+type DragEventLike = Pick<DragEvent, "dataTransfer" | "preventDefault"> & { shiftKey?: boolean };
 
-export function startSftpFileDrag({ event, paneId, connection, sources, side, onRemoteDrag, onError }: {
+export function startSftpFileDrag({ event, paneId, connection, sources, side, onRemoteDrag, onStartRemoteDrag, onError }: {
   event: DragEventLike;
   paneId: string;
   connection?: { id: string; isLocal?: boolean } | null;
   sources: Omit<LocalDragSource, "side">[];
   side: "left" | "right";
   onRemoteDrag: (sources: Omit<LocalDragSource, "side">[], side: "left" | "right") => void;
+  onStartRemoteDrag?: StartRemoteFileDrag;
   onError: (message: string) => void;
 }) {
   clearLocalFileDrag();
-  if (connection?.isLocal !== true) {
+  const remote = connection?.isLocal !== true;
+  if (remote) {
     event.dataTransfer!.effectAllowed = "copyMove";
     event.dataTransfer!.setData("text/plain", sources.map((file) => file.name).join("\n"));
     onRemoteDrag(sources, side);
-    return;
+    if (!onStartRemoteDrag) return;
+    setSftpFileDragPreview(event.dataTransfer!, sources.map(source => source.name));
+  } else {
+    event.preventDefault();
   }
-  event.preventDefault();
   const bridge = netcattyBridge.get();
-  if (!bridge?.startLocalFileDrag) {
+  if (!remote && !bridge?.startLocalFileDrag) {
     onError("Native file drag is unavailable. Restart Netcatty after updating.");
     return;
   }
   const files = sources.filter((source) => source.name !== "..");
-  if (!files.length || files.some((file) => !file.sourcePath || file.sourceConnectionId !== connection.id)) {
-    onError("The local file selection is no longer available.");
+  if (!connection || !files.length || files.some((file) => !file.sourcePath || file.sourceConnectionId !== connection.id)) {
+    onError("The file selection is no longer available.");
     return;
   }
   const requestId = crypto.randomUUID();
-  const paths = [...new Set(files.map((file) => joinPath(file.sourcePath!, file.name)))];
-  state.session = { requestId, paneId, connectionId: connection.id, paths, sources: files.map((file) => ({ ...file, side })) };
+  const paths = remote ? [] : [...new Set(files.map((file) => joinPath(file.sourcePath!, file.name)))];
+  state.session = { requestId, paneId, connectionId: connection.id, paths, sources: files.map((file) => ({ ...file, side })), remote };
   observeGestureEnd();
-  // Send during dragstart, without awaiting in the renderer. Do not interpret
-  // the reply as a completed transfer or use it to clear an active gesture.
-  try {
-    void bridge.startLocalFileDrag({ requestId, paths }).then((result) => {
-      if (result.started && state.session?.requestId === requestId) state.session.started = true;
-      if (!result.started && state.session?.requestId === requestId) {
-        clearLocalFileDrag(requestId);
-        if (result.error) onError(result.error);
-      }
-    }).catch((error: unknown) => {
-      if (state.session?.requestId !== requestId) return;
+  const startNative = () => bridge!.startLocalFileDrag!({ requestId, paths: state.session!.paths }).then((result) => {
+    if (result.started && state.session?.requestId === requestId) state.session.started = true;
+    if (!result.started && state.session?.requestId === requestId) {
       clearLocalFileDrag(requestId);
-      onError(error instanceof Error ? error.message : "Unable to drag local files");
-    });
-  } catch (error) {
+      if (result.error) onError(result.error);
+    }
+  });
+  const fail = (error: unknown) => {
+    if (state.session?.requestId !== requestId) return;
     clearLocalFileDrag(requestId);
-    onError(error instanceof Error ? error.message : "Unable to drag local files");
+    onError(error instanceof Error ? error.message : 'Unable to drag files');
+  };
+  // Remote HTML dragging remains owned by the official pane callbacks. The
+  // helper only watches for an external destination; it does not replace or
+  // cancel the browser drag. A drop inside the app cancels this observer.
+  try {
+    if (remote) {
+      void onStartRemoteDrag!({ requestId, paneId, connectionId: connection.id, sources: files, side,
+        isCurrent: () => state.session?.requestId === requestId,
+      }).then(() => clearLocalFileDrag(requestId)).catch(fail);
+    } else {
+      void startNative().catch(fail);
+    }
+  } catch (error) {
+    fail(error);
   }
 }
 

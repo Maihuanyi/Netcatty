@@ -75,6 +75,7 @@ test("beforePackCursorSdk builds Windows Hello helper only for Windows packages"
     arch: 3,
     ensureCursorSdkPlatformPackages: () => [],
     buildWindowsHelloHelper: (projectDir) => calls.push(projectDir),
+    buildSftpDropTarget: () => {},
   });
 
   assert.deepEqual(calls, [{ projectDir: process.cwd(), platform: "win32", arch: "arm64" }]);
@@ -99,6 +100,7 @@ test("beforePackCursorSdk falls back to npm_config_arch for Windows Hello helper
       electronPlatformName: "win32",
       ensureCursorSdkPlatformPackages: () => [],
       buildWindowsHelloHelper: (projectDir) => calls.push(projectDir),
+      buildSftpDropTarget: () => {},
     });
   } finally {
     if (originalArch === undefined) {

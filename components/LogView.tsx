@@ -1,6 +1,6 @@
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
-import { WebglAddon } from "@xterm/addon-webgl";
+import { TransparentWebglAddon as WebglAddon } from "./terminal/runtime/TransparentWebglAddon";
 import "@xterm/xterm/css/xterm.css";
 import { FileText, Download, Palette, X } from "lucide-react";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +11,8 @@ import { TERMINAL_THEMES } from "../infrastructure/config/terminalThemes";
 import { useCustomThemes } from "../application/state/customThemeStore";
 import { useAppearanceChromeStore } from "../application/state/appearanceChromeStore";
 import { applyCustomAccentToTerminalTheme } from "../domain/terminalAppearance";
+import { useAppBackground } from "../application/state/appBackgroundStore";
+import { resolveAppTerminalBackground } from "./terminal/appBackground";
 import { Button } from "./ui/button";
 import ThemeCustomizeModal from "./terminal/ThemeCustomizeModal";
 
@@ -32,6 +34,7 @@ const LogViewComponent: React.FC<LogViewProps> = ({
     onUpdateLog,
 }) => {
     const { t, resolvedLocale } = useI18n();
+    const { effectiveEnabled: backgroundEnabled, settings: backgroundSettings } = useAppBackground();
     const containerRef = useRef<HTMLDivElement>(null);
     const termRef = useRef<XTerm | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
@@ -137,8 +140,9 @@ const LogViewComponent: React.FC<LogViewProps> = ({
             cursorBlink: false,
             cursorStyle: "underline",
             allowProposedApi: true,
+            allowTransparency: true,
             disableStdin: true, // Read-only mode
-            theme: currentTheme.colors,
+            theme: { ...currentTheme.colors, background: resolveAppTerminalBackground(currentTheme.colors.background) },
             scrollback: 10000,
         });
 
@@ -151,6 +155,7 @@ const LogViewComponent: React.FC<LogViewProps> = ({
 
         // Open terminal
         term.open(containerRef.current);
+        term.element?.style.setProperty('--app-terminal-background', resolveAppTerminalBackground(currentTheme.colors.background));
 
         // Try to load WebGL addon for better performance
         try {
@@ -206,9 +211,10 @@ const LogViewComponent: React.FC<LogViewProps> = ({
     // Update theme instantly without recreating terminal
     useEffect(() => {
         if (termRef.current && isReady) {
-            termRef.current.options.theme = currentTheme.colors;
+            termRef.current.options.theme = { ...currentTheme.colors, background: resolveAppTerminalBackground(currentTheme.colors.background) };
+            termRef.current.element?.style.setProperty('--app-terminal-background', resolveAppTerminalBackground(currentTheme.colors.background));
         }
-    }, [currentTheme, isReady]);
+    }, [currentTheme, isReady, backgroundEnabled, backgroundSettings.surfaceOpacity]);
 
     // Update font size instantly without recreating terminal
     useEffect(() => {
@@ -252,7 +258,7 @@ const LogViewComponent: React.FC<LogViewProps> = ({
     const isLocal = log.protocol === "local" || log.hostname === "localhost";
 
     return (
-        <div className="h-full w-full flex flex-col bg-background">
+        <div className="h-full w-full flex flex-col bg-background" data-app-background-surface="transparent">
             {/* Header */}
             <div className="flex h-9 items-center justify-between gap-3 px-3 py-1 border-b border-border/50 bg-secondary/30 shrink-0">
                 <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -313,6 +319,7 @@ const LogViewComponent: React.FC<LogViewProps> = ({
             {/* Terminal container */}
             <div
                 className="flex-1 overflow-hidden p-2"
+                data-app-background-surface="transparent"
                 style={{ backgroundColor: currentTheme?.colors?.background || '#000000' }}
             >
                 <div ref={containerRef} className="h-full w-full" />

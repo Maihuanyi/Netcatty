@@ -34,6 +34,7 @@ import {
 } from '../state/settingsChromeStore';
 import { getAppAppLockRuntime, useAppLockChrome } from '../state/appRuntimeBridge';
 import { useAppThemeStyle } from './useAppThemeStyle';
+import { AppBackgroundLayer } from '../../components/AppBackgroundLayer';
 import { useMainWindowInputFocusRecovery } from '../state/useMainWindowInputFocusRecovery';
 import { useExternalMcpToggleState } from '../state/useExternalMcpToggleState';
 import { selectPluginThemeTokens } from '../state/pluginContributionEnvironment';
@@ -531,7 +532,8 @@ function AppViewInner({ domains }: AppViewProps) {
     <SnippetExecutionProvider>
     <UnsavedChangesProvider>
       {() => (
-    <div className="flex flex-col h-screen text-foreground font-sans netcatty-shell" data-terminal-appearance-root onContextMenu={handleRootContextMenu}>
+    <div className="relative isolate flex flex-col h-screen text-foreground font-sans netcatty-shell" data-terminal-appearance-root onContextMenu={handleRootContextMenu}>
+      <AppBackgroundLayer />
       <TopTabs
         theme={resolvedTheme}
         themePreference={themePreference}

@@ -43,7 +43,7 @@ function createLocalFileDragHandlers({ getWindows, nativeImage, getGesture, stat
     try {
       if (!authorized(event)) throw new Error("Unauthorized local file drag sender");
       const gesture = getGesture(event.sender);
-      if (!gesture) throw new Error("Start a new mouse drag to share local files");
+      if (!gesture) return { started: false, reason: "gesture-ended", error: "Start a new mouse drag to share local files" };
       const paths = validateDragPayload(payload);
       request = { requestId: payload.requestId };
       pending.set(event.sender, request);
@@ -56,14 +56,14 @@ function createLocalFileDragHandlers({ getWindows, nativeImage, getGesture, stat
         }
         if (pending.get(event.sender) !== request) return { started: false };
         if (getGesture(event.sender) !== gesture) {
-          throw new Error("The drag ended before the files were ready. Please drag again.");
+          return { started: false, reason: "gesture-ended", error: "The drag ended before the files were ready. Please drag again." };
         }
       }
       if (!authorized(event) || pending.get(event.sender) !== request) return { started: false };
       // Native input is tracked in the main process, not via the synthetic
       // mouseup Chromium emits when the renderer cancels its HTML drag.
       if (getGesture(event.sender) !== gesture) {
-        throw new Error("The drag ended before the files were ready. Please drag again.");
+        return { started: false, reason: "gesture-ended", error: "The drag ended before the files were ready. Please drag again." };
       }
       if (!icon) {
         const pixels = Buffer.alloc(16 * 16 * 4);
@@ -114,6 +114,7 @@ function registerHandlers(ipcMain, dependencies) {
   const handlers = createLocalFileDragHandlers({ ...dependencies, getGesture: tracker.getGesture });
   ipcMain.handle("netcatty:local:drag-start", handlers.start);
   ipcMain.on("netcatty:local:drag-cancel", handlers.cancel);
+  return tracker;
 }
 
 module.exports = { registerHandlers, createLocalFileDragHandlers, createGestureTracker, validateDragPayload };

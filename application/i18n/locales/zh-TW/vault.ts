@@ -1,6 +1,11 @@
 import type { Messages } from '../types';
 
 export const zhTWVaultMessages: Messages = {
+  'sftp.drag.hint': '軟體內按原方式拖曳；拖出軟體可下載到桌面或檔案總管資料夾。',
+  'sftp.drag.copyTo': '下載到',
+  'sftp.drag.invalidTarget': '請拖到桌面或檔案總管資料夾',
+  'sftp.drag.selection': '已選擇 {count} 項 · 放開開始下載',
+  'sftp.drag.queued': '正在下載 {count} 項到 {directory}',
   // Notes
   'notes.search.placeholder': '搜尋筆記、主機、標籤...',
   'notes.action.newNote': '新增筆記',

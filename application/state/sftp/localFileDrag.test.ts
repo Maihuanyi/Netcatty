@@ -57,6 +57,56 @@ test('local multi-selection retains individual tree paths and never exports plai
   assert.equal(getLocalFileDragSources(payload), null);
 });
 
+test('remote destination gestures export no temporary paths and survive external focus changes', async t => {
+  const h = setup(t);
+  const cancelled: string[] = [];
+  netcattyBridge.require().cancelSftpFileDrag = id => { cancelled.push(id); };
+  let finish!: () => void;
+  let request!: Parameters<NonNullable<Parameters<typeof startSftpFileDrag>[0]['onStartRemoteDrag']>>[0];
+  startSftpFileDrag({ event: { dataTransfer: h.transfer(), preventDefault: assert.fail },
+    paneId: 'pane', connection: { id: 'local', isLocal: false }, sources: h.sources, side: 'right',
+    onRemoteDrag: (...args) => { h.remote.push(args); }, onError: assert.fail,
+    onStartRemoteDrag: async value => { request = value; return new Promise(resolve => { finish = resolve; }); },
+  });
+  assert.equal(request.isCurrent(), true);
+  assert.deepEqual(h.remote, [['text/plain', 'certificate.txt\nfolder'], [h.sources, 'right']]);
+  window.dispatchEvent(new h.dom.window.Event('blur'));
+  assert.equal(request.isCurrent(), true);
+  assert.deepEqual(h.calls, [], 'remote gestures must never call local native file drag');
+  finish(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(request.isCurrent(), false);
+  assert.equal(cancelled.length, 1);
+  assert.deepEqual(h.calls, []);
+});
+
+test('Escape, pane disposal and in-app drops cancel external detection without replacing HTML dragging', async t => {
+  const h = setup(t);
+  const cancelled: string[] = [];
+  netcattyBridge.require().cancelSftpFileDrag = id => { cancelled.push(id); };
+  let finish!: () => void, isCurrent!: () => boolean;
+  const args = { event: { dataTransfer: h.transfer(), preventDefault() {} }, paneId: 'pane',
+    connection: { id: 'local', isLocal: false }, sources: h.sources, side: 'left' as const,
+    onRemoteDrag: () => { h.remote.push('html'); }, onError: assert.fail,
+    onStartRemoteDrag: async request => { isCurrent = request.isCurrent; return new Promise<void>(resolve => { finish = resolve; }); },
+  };
+  startSftpFileDrag(args);
+  window.dispatchEvent(new h.dom.window.KeyboardEvent('keydown', { key: 'Escape' }));
+  assert.equal(isCurrent(), false);
+  finish(); await new Promise(resolve => setImmediate(resolve));
+  startSftpFileDrag(args);
+  clearLocalFileDragForPane('pane');
+  assert.equal(isCurrent(), false); finish();
+  assert.equal(cancelled.length, 2);
+  startSftpFileDrag({ ...args, event: { ...args.event, shiftKey: true, preventDefault: assert.fail } });
+  assert.ok(h.remote.includes('html'));
+  assert.equal(isCurrent(), true, 'Shift must not select a separate drag mode');
+  window.dispatchEvent(new h.dom.window.Event('drop'));
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(isCurrent(), false);
+  finish();
+  assert.deepEqual(h.calls, []);
+});
+
 test('native paths retain symlink-parent segments and match the returning internal drop', (t) => {
   const h = setup(t);
   const sources = [{ ...h.sources[0], sourcePath: '/local/link/.././folder' }];

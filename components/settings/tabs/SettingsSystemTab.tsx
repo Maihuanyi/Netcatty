@@ -17,6 +17,7 @@ import { Toggle, Select, SettingRow, SectionHeader, SettingCard, SettingHint, Se
 import { cn } from "../../../lib/utils";
 import { isAppLockOverlayActive } from '../../../infrastructure/appLockOverlayDom';
 import { AppLockSettingsSection } from './AppLockSettingsSection';
+import buildPolicy from '../../../electron/shared/buildPolicy.json';
 
 interface CrashLogFile {
   fileName: string;
@@ -490,6 +491,8 @@ const SettingsSystemTab: React.FC<SettingsSystemTabProps> = ({
               </div>
 
               {/* Status message — priority: autoDownloadStatus > isChecking/manualCheckStatus */}
+              {!buildPolicy.updatesEnabled && <p className="text-sm text-muted-foreground">{t('settings.update.disabledForBuild')}</p>}
+              {buildPolicy.updatesEnabled && <>
               {updateState.autoDownloadStatus === 'downloading' && (
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
@@ -601,8 +604,9 @@ const SettingsSystemTab: React.FC<SettingsSystemTabProps> = ({
                   onChange={setAutoUpdateEnabled}
                 />
               </SettingRow>
+              </>}
             </SettingCard>
-            <SettingHint>
+            {buildPolicy.updatesEnabled && <SettingHint>
               {updateState.lastCheckedAt && (
                 <span>
                   {t('settings.update.lastCheckedPrefix')}
@@ -611,7 +615,7 @@ const SettingsSystemTab: React.FC<SettingsSystemTabProps> = ({
                 </span>
               )}
               {t('settings.update.hint')}
-            </SettingHint>
+            </SettingHint>}
 
           <SectionHeader title={t("settings.autoLaunch.title")} />
             <SettingCard className="py-4">

@@ -1,6 +1,11 @@
 import type { Messages } from '../types';
 
 export const ruVaultMessages: Messages = {
+  'sftp.drag.hint': 'Перетаскивайте внутри Netcatty как обычно или наружу для загрузки на рабочий стол или в папку Проводника.',
+  'sftp.drag.copyTo': 'Скачать в',
+  'sftp.drag.invalidTarget': 'Перетащите на рабочий стол или в папку Проводника',
+  'sftp.drag.selection': 'Выбрано: {count} · Отпустите для скачивания',
+  'sftp.drag.queued': 'Скачивание {count} элементов в {directory}',
   // Notes
   'notes.search.placeholder': 'Поиск заметок, хостов, тегов...',
   'notes.action.newNote': 'Новая заметка',

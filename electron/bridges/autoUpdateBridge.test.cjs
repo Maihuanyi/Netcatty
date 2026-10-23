@@ -10,6 +10,23 @@ const WINDOW_MANAGER_PATH = require.resolve("./windowManager.cjs");
 const GLOBAL_SHORTCUT_PATH = require.resolve("./globalShortcutBridge.cjs");
 const DIRTY_EDITOR_GUARD_PATH = require.resolve("./dirtyEditorGuard.cjs");
 
+test('custom build blocks checks, downloads, installation and attempts to enable updates', async () => {
+  assert.equal(require('../shared/buildPolicy.json').updatesEnabled, false);
+  const updater = new Proxy({}, { get() { throw new Error('Updater must not be initialized'); } });
+  await withMocks({ updatesEnabled: false, autoUpdater: updater }, async ({ bridge }) => {
+    const handlers = new Map();
+    bridge.registerHandlers({ handle: (name, handler) => handlers.set(name, handler) });
+    bridge.startAutoCheck(0);
+    assert.equal((await handlers.get('netcatty:update:check')()).available, false);
+    assert.equal((await handlers.get('netcatty:update:download')()).success, false);
+    assert.equal((await handlers.get('netcatty:update:install')()).success, false);
+    assert.deepEqual(await handlers.get('netcatty:update:setAutoUpdate')(null, { enabled: true }), { enabled: false });
+    assert.deepEqual(await handlers.get('netcatty:update:getAutoUpdate')(), { enabled: false });
+    assert.equal((await handlers.get('netcatty:update:getStatus')()).status, 'idle');
+    await new Promise(resolve => setTimeout(resolve, 10));
+  });
+});
+
 // electron-updater pulls in native/electron-only code, so it can't be required
 // in a plain `node --test` process. We intercept the bare `electron-updater`
 // specifier and the bridge's lazy sibling requires at load time and hand back
@@ -24,7 +41,7 @@ const ELECTRON_UPDATER_ID = "electron-updater";
  * assert on their interactions. Restores Module._load and the bridge cache on
  * exit so tests stay isolated.
  */
-async function withMocks({ autoUpdater, autoUpdaterExports, windowManager, globalShortcutBridge, dirtyEditorGuard, browserWindows } = {}, fn) {
+async function withMocks({ autoUpdater, autoUpdaterExports, windowManager, globalShortcutBridge, dirtyEditorGuard, browserWindows, updatesEnabled = true } = {}, fn) {
   const fakeAutoUpdater = autoUpdater || {
     autoDownload: true,
     autoInstallOnAppQuit: false,
@@ -55,6 +72,9 @@ async function withMocks({ autoUpdater, autoUpdaterExports, windowManager, globa
 
   const originalLoad = Module._load;
   Module._load = function patchedLoad(request, parent, isMain) {
+    if (parent?.filename === BRIDGE_PATH && request === '../shared/buildPolicy.json') {
+      return { updatesEnabled };
+    }
     if (request === ELECTRON_UPDATER_ID) {
       // autoUpdaterExports lets a test simulate a broken electron-updater
       // (e.g. {} with no autoUpdater) so getAutoUpdater() resolves to null.

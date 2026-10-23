@@ -3,6 +3,15 @@ import type { RemoteFile, SftpFilenameEncoding, TransferDirection } from "../../
 declare global {
   interface NetcattyBridge {
     // SFTP operations
+    startSftpFileDrag?(payload: {
+      requestId: string;
+      count: number;
+      fileNames?: string[];
+      copyLabel: string;
+      invalidLabel: string;
+      selectionLabel: string;
+    }): Promise<{ status: 'cancelled' } | { status: 'dropped'; directory: string }>;
+    cancelSftpFileDrag?(requestId: string): void;
     openSftp(options: NetcattySSHOptions): Promise<string>;
     openSftpForSession?(sessionId: string, options?: NetcattySSHOptions): Promise<string>;
     listSftp(sftpId: string, path: string, encoding?: SftpFilenameEncoding): Promise<RemoteFile[]>;

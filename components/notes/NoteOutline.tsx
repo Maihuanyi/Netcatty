@@ -34,6 +34,7 @@ export const NoteOutline: React.FC<NoteOutlineProps> = ({
     <nav
       aria-label={t("notes.outline.title")}
       data-note-outline="true"
+      data-app-background-surface="transparent"
       className={`flex h-full flex-col bg-background select-none ${className}`}
     >
       <div className="flex shrink-0 items-center justify-between px-3.5 pb-2 pt-3">

@@ -12,6 +12,8 @@
  */
 
 let _deps = null;
+// This customized build must not be replaced by the upstream release feed.
+const { updatesEnabled } = require('../shared/buildPolicy.json');
 
 /**
  * Read the persisted auto-update preference from a JSON file in userData.
@@ -102,6 +104,7 @@ let _isChecking = false;
  */
 let _lastStatus = { status: 'idle', percent: 0, error: null, version: null, isChecking: false };
 function getAutoUpdater() {
+  if (!updatesEnabled) return null;
   if (_autoUpdater) return _autoUpdater;
   try {
     const { autoUpdater } = require("electron-updater");
@@ -206,6 +209,7 @@ function setupGlobalListeners() {
 let _autoCheckTimer = null;
 
 function startAutoCheck(delayMs = 5000) {
+  if (!updatesEnabled) return;
   if (!isAutoUpdateSupported()) {
     console.log("[AutoUpdate] Platform does not support auto-update, skipping auto-check");
     return;
@@ -415,6 +419,16 @@ function broadcastToAllWindows(channel, payload) {
 }
 
 function registerHandlers(ipcMain) {
+  if (!updatesEnabled) {
+    const error = 'Updates are disabled in this customized build.';
+    ipcMain.handle('netcatty:update:check', () => ({ available: false, supported: false, error }));
+    ipcMain.handle('netcatty:update:download', () => ({ success: false, error }));
+    ipcMain.handle('netcatty:update:install', () => ({ success: false, error }));
+    ipcMain.handle('netcatty:update:getStatus', () => ({ ..._lastStatus }));
+    ipcMain.handle('netcatty:update:getAutoUpdate', () => ({ enabled: false }));
+    ipcMain.handle('netcatty:update:setAutoUpdate', () => ({ enabled: false }));
+    return;
+  }
   // ---- Check for updates ------------------------------------------------
   ipcMain.handle("netcatty:update:check", async () => {
     // Cancel any pending auto-check to prevent concurrent checkForUpdates()

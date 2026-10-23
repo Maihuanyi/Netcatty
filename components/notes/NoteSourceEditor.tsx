@@ -321,6 +321,7 @@ export const NoteSourceEditor = React.forwardRef<NoteSourceEditorHandle, NoteSou
     return (
       <div
         className={`relative flex h-full w-full bg-background font-mono text-sm select-text overflow-hidden ${className}`}
+        data-app-background-surface="transparent"
       >
         {/* Line numbers gutter */}
         <div

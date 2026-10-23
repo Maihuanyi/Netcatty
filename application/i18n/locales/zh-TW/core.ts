@@ -1,6 +1,14 @@
 import type { Messages } from '../types';
 
 export const zhTWCoreMessages: Messages = {
+  'settings.appearance.background.title': '背景圖片',
+  'settings.appearance.background.description': '支援 PNG/JPEG，最大 10 MiB、4000 萬像素。僅儲存在本機，套用至主視窗和設定預覽。',
+  'settings.appearance.background.preview': '背景圖片預覽',
+  'settings.appearance.background.choose': '選擇 / 更換圖片',
+  'settings.appearance.background.remove': '移除圖片',
+  'settings.appearance.background.enabled': '啟用背景圖片',
+  'settings.appearance.background.opacity': '介面底色不透明度',
+  'settings.appearance.background.error': '無法載入或儲存背景，請選擇符合大小限制的有效 PNG/JPEG 圖片後重試。',
   // Common
   'common.save': '儲存',
   'common.cancel': '取消',
@@ -262,6 +270,7 @@ export const zhTWCoreMessages: Messages = {
   'settings.update.lastCheckedPrefix': '上次檢查：',
   'settings.update.autoUpdateEnabled': '自動更新',
   'settings.update.autoUpdateEnabledDesc': '有新版本時自動檢查並下載更新。',
+  'settings.update.disabledForBuild': '此自訂版本已停用更新，以保留本機修改。',
 
   // Settings > Session Restore
   'settings.sessionRestore.title': '工作階段恢復',

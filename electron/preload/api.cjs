@@ -1807,6 +1807,8 @@ function createPreloadApi(ctx) {
 
   // Get file path from File object (for drag-and-drop)
   startLocalFileDrag: (payload) => ipcRenderer.invoke("netcatty:local:drag-start", payload),
+    startSftpFileDrag: process.platform === 'win32' ? (payload) => ipcRenderer.invoke("netcatty:sftp:drag-start", payload) : undefined,
+  cancelSftpFileDrag: (requestId) => ipcRenderer.send("netcatty:sftp:drag-cancel", { requestId }),
   cancelLocalFileDrag: (requestId) => ipcRenderer.send("netcatty:local:drag-cancel", { requestId }),
   getPathForFile: (file) => {
     try {
@@ -1864,6 +1866,9 @@ function createPreloadApi(ctx) {
   readClipboardImage: async () => {
     return ipcRenderer.invoke("netcatty:clipboard:readImage");
   },
+  importAppBackground: () => ipcRenderer.invoke("netcatty:app-background:import"),
+  loadAppBackground: (imageId) => ipcRenderer.invoke("netcatty:app-background:load", imageId),
+  removeAppBackground: (imageId) => ipcRenderer.invoke("netcatty:app-background:remove", imageId),
   hasClipboardImage: async () => {
     return ipcRenderer.invoke("netcatty:clipboard:hasImage");
   },

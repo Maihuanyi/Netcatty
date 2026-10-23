@@ -1,6 +1,14 @@
 import type { Messages } from '../types';
 
 export const enCoreMessages: Messages = {
+  'settings.appearance.background.title': 'Background image',
+  'settings.appearance.background.description': 'PNG or JPEG, up to 10 MiB and 40 million pixels. Stored on this device only. Applies to the main window and settings preview.',
+  'settings.appearance.background.preview': 'Background image preview',
+  'settings.appearance.background.choose': 'Choose / replace image',
+  'settings.appearance.background.remove': 'Remove image',
+  'settings.appearance.background.enabled': 'Enable background image',
+  'settings.appearance.background.opacity': 'Surface opacity',
+  'settings.appearance.background.error': 'Could not load or save the background. Choose a valid PNG/JPEG within the size limits and try again.',
   // Common
   'common.save': 'Save',
   'common.cancel': 'Cancel',
@@ -256,6 +264,7 @@ export const enCoreMessages: Messages = {
   'settings.update.lastCheckedPrefix': 'Last checked: ',
   'settings.update.autoUpdateEnabled': 'Automatic Updates',
   'settings.update.autoUpdateEnabledDesc': 'Automatically check and download updates when available.',
+  'settings.update.disabledForBuild': 'Updates are disabled in this customized build to preserve local modifications.',
 
   // Settings > Session Restore
   'settings.sessionRestore.title': 'Session Restore',

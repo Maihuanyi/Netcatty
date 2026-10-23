@@ -1,6 +1,11 @@
 import type { Messages } from '../types';
 
 export const enVaultMessages: Messages = {
+  'sftp.drag.hint': 'Drag within Netcatty as usual, or drag outside to download to a desktop or Explorer folder.',
+  'sftp.drag.copyTo': 'Download to',
+  'sftp.drag.invalidTarget': 'Move to a desktop or Explorer folder',
+  'sftp.drag.selection': '{count} selected · Release to download',
+  'sftp.drag.queued': 'Downloading {count} item(s) to {directory}',
   // Notes
   'notes.search.placeholder': 'Search notes, hosts, tags...',
   'notes.action.newNote': 'New Note',
