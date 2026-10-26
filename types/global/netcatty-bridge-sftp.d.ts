@@ -98,7 +98,7 @@ declare global {
         /** When true, skip main-process admission (renderer already scheduled). */
         skipAdmission?: boolean;
       }
-    ): Promise<{ transferId: string; totalBytes?: number; error?: string; cancelled?: boolean }>;
+    ): Promise<{ transferId: string; totalBytes?: number; error?: string; cancelled?: boolean; warning?: string }>;
     pauseTransfer?(transferId: string): Promise<{
       success: boolean;
       superseded?: boolean;
@@ -132,6 +132,7 @@ declare global {
       startedAt?: number;
       endedAt?: number;
       error?: string;
+      warning?: string;
       transferred?: number;
       totalBytes?: number;
       speed?: number;

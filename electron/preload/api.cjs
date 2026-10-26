@@ -1457,12 +1457,14 @@ function createPreloadApi(ctx) {
   // Quit guard: main process asks whether any editor tabs have unsaved changes.
   // Returns an unsubscribe function so React effects can clean up on unmount.
   onCheckDirtyEditors: (listener) => {
-    const handler = () => listener();
+    const handler = (_event, request) => listener(request);
     ipcRenderer.on("app:query-dirty-editors", handler);
     return () => ipcRenderer.removeListener("app:query-dirty-editors", handler);
   },
   // Renderer reports the dirty-check result back to the main process.
-  reportDirtyEditorsResult: (hasDirty, reason) => ipcRenderer.send("app:dirty-editors-result", { hasDirty, reason }),
+  reportDirtyEditorsResult: (hasDirty, reason, options) => ipcRenderer.send("app:dirty-editors-result", {
+    hasDirty, reason, requestId: options?.requestId, pending: options?.pending === true,
+  }),
   
   // Port Forwarding API
   startPortForward: async (options) => {
@@ -2120,8 +2122,8 @@ function createPreloadApi(ctx) {
       clientUserMessageId,
     });
   },
-  aiSdkAgentListModels: async (sdkBackend, cwd, providerId, chatSessionId, agentEnv, agentCommand, codexRuntime) => {
-    return ipcRenderer.invoke("netcatty:ai:sdk-agent:list-models", { sdkBackend, cwd, providerId, chatSessionId, agentEnv, agentCommand, codexRuntime });
+  aiSdkAgentListModels: async (sdkBackend, cwd, providerId, chatSessionId, agentEnv, agentCommand, codexRuntime, force) => {
+    return ipcRenderer.invoke("netcatty:ai:sdk-agent:list-models", { sdkBackend, cwd, providerId, chatSessionId, agentEnv, agentCommand, codexRuntime, force });
   },
   codexAppServerGetStatus: async (agentCommand, agentEnv) => {
     return ipcRenderer.invoke("netcatty:ai:codex-app-server:status", { agentCommand, agentEnv });

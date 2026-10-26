@@ -33,6 +33,7 @@ const {
   SFTP_REQUEST_TIMEOUT_MS,
   TRANSFER_CHUNK_SIZE,
   UPLOAD_TRANSFER_CONCURRENCY,
+  getSftpTransferConcurrency,
 } = require("./transferLimits.cjs");
 
 /**
@@ -2473,6 +2474,41 @@ async function acquireSessionFastDownloadSlot(client, transfer) {
   }
 }
 
+// TERM-SSHD compatibility requires one file handle per channel. Per-file request
+// concurrency is not enough: pooled SFTP aliases share that physical channel,
+// and a second body or verification OPEN would fail even for tiny files.
+// Reuse the cancelable one-slot queue, keyed by the stream rather than its
+// wrapper client, across both directions and the complete verification phase.
+async function withSequentialSftpTransferSlot(client, transfer, operation) {
+  if (isScpModeClient(client)) return operation();
+  await requireSftpChannel(client);
+  const channel = client.sftp;
+  if (getSftpTransferConcurrency(channel, DOWNLOAD_TRANSFER_CONCURRENCY) !== 1) {
+    return operation();
+  }
+  await acquireSessionFastDownloadSlot(channel, transfer);
+  try {
+    return await operation();
+  } catch (error) {
+    if (error?.uncleanSftpChannel && client.sftp === channel) {
+      abandonWedgedVerificationSftpChannel(client);
+    }
+    throw error;
+  } finally {
+    releaseSessionFastDownloadSlot(channel);
+  }
+}
+
+async function closeSequentialSftpTransferHandle(sftp, handle) {
+  const result = await closeSftpHandleBestEffort(sftp, handle);
+  if (result.unclean) {
+    const error = new Error("SFTP body handle could not be closed");
+    error.noTransferFallback = true;
+    error.uncleanSftpChannel = true;
+    throw error;
+  }
+}
+
 async function acquireIsolatedDownloadChannel(client, transfer) {
   const pool = getIsolatedDownloadChannelPool(client);
   if (transfer?.cancelled) return null;
@@ -2651,6 +2687,22 @@ async function uploadFile(
   onBytesCommitted = null,
   options = {},
 ) {
+  return withSequentialSftpTransferSlot(client, transfer, () => uploadFileOnChannel(
+    localPath, remotePath, client, fileSize, transfer, sendProgress, encoding, onBytesCommitted, options,
+  ));
+}
+
+async function uploadFileOnChannel(
+  localPath,
+  remotePath,
+  client,
+  fileSize,
+  transfer,
+  sendProgress,
+  encoding = "utf-8",
+  onBytesCommitted = null,
+  options = {},
+) {
   const generatedStagePath = options.generatedStagePath === true;
   const existingRemoteMode = Number.isFinite(options.existingMode)
     ? options.existingMode & 0o7777
@@ -2714,6 +2766,19 @@ async function uploadFile(
       });
     }
     await assertRemoteUploadSize(client, remotePath, fileSize);
+    if (fileSize > 0 && getSftpTransferConcurrency(sftp, UPLOAD_TRANSFER_CONCURRENCY) === 1) {
+      // A successful WRITE acknowledgement and matching size are insufficient
+      // on TERM-SSHD. Prove the staged bytes before any destination promotion.
+      const [localHash, remoteHash] = await Promise.all([
+        hashLocalPrefix(originalLocalPath, fileSize, { signal: transfer.signal }),
+        hashRemotePrefixWithSftpRanges(client, remotePath, fileSize, { signal: transfer.signal }),
+      ]);
+      if (!localHash || !remoteHash || localHash !== remoteHash) {
+        const error = new Error("SFTP upload content verification failed");
+        error.noTransferFallback = true;
+        throw error;
+      }
+    }
     // In-place replace writes the final path (fastPut / pipelined WRITE). Restore
     // captured mode here; staged `.part` uploads restore after rename instead.
     if (!generatedStagePath && Number.isFinite(existingRemoteMode)) {
@@ -3869,7 +3934,7 @@ async function hashRemotePrefixWithSftpRanges(client, remotePath, bytes, options
 
   const chunkSize = TRANSFER_CHUNK_SIZE;
   const rangeCount = Math.ceil(bytes / chunkSize);
-  const concurrency = Math.min(DOWNLOAD_TRANSFER_CONCURRENCY, rangeCount);
+  const concurrency = Math.min(getSftpTransferConcurrency(sftp, DOWNLOAD_TRANSFER_CONCURRENCY), rangeCount);
   let completedBytes = 0;
   const openTimeoutMs = Number(options.sftpOpenTimeoutMs) > 0
     ? Number(options.sftpOpenTimeoutMs)
@@ -4156,10 +4221,14 @@ function writeSftpRange(sftp, handle, buffer, position, length) {
   });
 }
 
-async function verifyFastDownloadSamples(sftp, remoteHandle, localHandle, fileSize, transfer) {
+async function verifyFastDownloadSamples(sftp, remoteHandle, localHandle, fileSize, transfer, remotePath) {
   if (fileSize <= 0) return;
   const sampleSize = Math.min(TRANSFER_CHUNK_SIZE, fileSize);
-  const offsets = [...new Set([
+  const sequentialPeer = getSftpTransferConcurrency(sftp, DOWNLOAD_TRANSFER_CONCURRENCY) === 1;
+  let verificationHandle = null;
+  const offsets = sequentialPeer ? (function* () {
+    for (let position = 0; position < fileSize; position += sampleSize) yield position;
+  })() : [...new Set([
     0,
     Math.max(0, Math.floor((fileSize - sampleSize) / 2)),
     Math.max(0, fileSize - sampleSize),
@@ -4197,6 +4266,12 @@ async function verifyFastDownloadSamples(sftp, remoteHandle, localHandle, fileSi
   try {
     if (transfer.cancelled) throw cancelError();
     if (channelError) throw channelError;
+    // TERM-SSHD ignores repositioned READs on a consumed handle. Reopen at
+    // offset zero and compare every byte sequentially instead of weakening
+    // verification or seeking back through the completed body handle.
+    if (sequentialPeer) {
+      verificationHandle = await openSftpReadHandle(sftp, remotePath, transfer.signal, SFTP_OPEN_TIMEOUT_MS);
+    }
     for (const position of offsets) {
       if (transfer.cancelled) throw cancelError();
       if (channelError) throw channelError;
@@ -4205,7 +4280,7 @@ async function verifyFastDownloadSamples(sftp, remoteHandle, localHandle, fileSi
       const localBuffer = Buffer.allocUnsafe(length);
       await Promise.race([
         (async () => {
-          await readSftpRange(sftp, remoteHandle, remoteBuffer, position, length);
+          await readSftpRange(sftp, verificationHandle || remoteHandle, remoteBuffer, position, length);
           await readLocalRange(localHandle, localBuffer, position, length);
           if (!remoteBuffer.equals(localBuffer)) {
             const error = new Error("Transfer source content changed during transfer");
@@ -4240,6 +4315,15 @@ async function verifyFastDownloadSamples(sftp, remoteHandle, localHandle, fileSi
       transfer.abort = previousAbort;
     }
     try { sftp.removeListener?.("error", onVerifyChannelError); } catch { /* ignore */ }
+    if (verificationHandle) {
+      const closeResult = await closeSftpHandleBestEffort(sftp, verificationHandle);
+      if (closeResult.unclean) {
+        const error = new Error("SFTP verification handle could not be closed");
+        error.noTransferFallback = true;
+        error.uncleanSftpChannel = true;
+        throw error;
+      }
+    }
   }
 }
 
@@ -4671,6 +4755,9 @@ function abandonWedgedVerificationSftpChannel(client) {
   // object back to later browse/transfer work (hasSftpChannelApi only checks
   // method presence). Non-sudo sessions can reopen; sudo recovery stays disabled.
   client.sftp = null;
+  for (const alias of sftpClients?.values?.() || []) {
+    if (alias?.sftp === sftp) alias.sftp = null;
+  }
   try { sftp.end?.(); } catch { /* ignore */ }
   try { sftp.destroy?.(); } catch { /* ignore */ }
 }
@@ -4798,6 +4885,7 @@ async function runPausableConcurrentRanges({
   sftp = null,
   forceSettleOnError = false,
 }) {
+  concurrency = getSftpTransferConcurrency(sftp, concurrency);
   let nextOffset = checkpoint;
   // Progress may complete out of order, but the resume checkpoint must never
   // advance past a range that has not durably finished yet.
@@ -5043,6 +5131,10 @@ async function uploadFileConcurrent(
   // Mutable: may shrink after path-gate wait if a stale truncating OPEN wiped
   // the stage while we were waiting (Codex P2 on 294b7a4b).
   let checkpoint = Math.max(0, Math.min(transfer.checkpointBytes || 0, fileSize));
+  if (getSftpTransferConcurrency(sftp, UPLOAD_TRANSFER_CONCURRENCY) === 1) {
+    checkpoint = 0;
+    transfer.checkpointBytes = 0;
+  }
   // A fallback strategy may have moved the resume offset. The prefix digest
   // only matches its own offset; anything else restarts at 0 before OPEN
   // chooses r+ vs w. Fingerprinted resumes do not consult this digest.
@@ -5241,7 +5333,14 @@ async function uploadFileConcurrent(
       // A closed channel never answers CLOSE. Skip it; the 2s race is only for
       // a live shared session. Falling through to another strategy on a dead
       // channel is handled by noTransferFallback on the close error.
-      if (!skipClose && sftp?.readable !== false) {
+      if (!skipClose && sftp?.readable !== false
+        && getSftpTransferConcurrency(sftp, UPLOAD_TRANSFER_CONCURRENCY) === 1) {
+        try {
+          await closeSequentialSftpTransferHandle(sftp, remoteHandle);
+        } catch (error) {
+          remoteCloseError = error;
+        }
+      } else if (!skipClose && sftp?.readable !== false) {
         let closeTimeout = null;
         try {
           await Promise.race([
@@ -5298,7 +5397,9 @@ async function downloadFileResumableFast(
   options = {},
 ) {
   const disposeChannel = options.disposeChannel !== false;
-  const checkpoint = Math.max(0, Math.min(transfer.checkpointBytes || 0, fileSize));
+  const sequentialPeer = getSftpTransferConcurrency(sftp, DOWNLOAD_TRANSFER_CONCURRENCY) === 1;
+  const checkpoint = sequentialPeer ? 0 : Math.max(0, Math.min(transfer.checkpointBytes || 0, fileSize));
+  if (sequentialPeer) transfer.checkpointBytes = 0;
   let channelError = null;
   const onChannelError = (error) => {
     channelError = channelError || error;
@@ -5355,7 +5456,17 @@ async function downloadFileResumableFast(
         forceSettleOnError: true,
       });
       if (channelError) throw channelError;
-      await verifyFastDownloadSamples(sftp, remoteHandle, localHandle, fileSize, transfer);
+      if (getSftpTransferConcurrency(sftp, DOWNLOAD_TRANSFER_CONCURRENCY) === 1) {
+        const closeResult = await closeSftpHandleBestEffort(sftp, remoteHandle);
+        remoteHandle = null;
+        if (closeResult.unclean) {
+          const error = new Error("SFTP body handle could not be closed before verification");
+          error.noTransferFallback = true;
+          error.uncleanSftpChannel = true;
+          throw error;
+        }
+      }
+      await verifyFastDownloadSamples(sftp, remoteHandle, localHandle, fileSize, transfer, remotePath);
     } catch (error) {
       failed = true;
       throw error;
@@ -5383,7 +5494,13 @@ async function downloadFileResumableFast(
     if (remoteHandle) {
       const skipClose = disposeChannel && (failed || transfer.cancelled);
       if (!skipClose) {
-        if (failed || transfer.cancelled) {
+        if (sequentialPeer && (failed || transfer.cancelled)) {
+          try {
+            await closeSequentialSftpTransferHandle(sftp, remoteHandle);
+          } catch (error) {
+            remoteCloseError = error;
+          }
+        } else if (failed || transfer.cancelled) {
           // Shared cancel/failure already settled the transfer; do not await
           // CLOSE (adds up to 2s on a dead channel). Best-effort close only.
           closeSftpHandle(sftp, remoteHandle).catch(() => {});
@@ -5434,6 +5551,7 @@ async function downloadFileResumableFast(
       error.noTransferFallback = true;
       throw error;
     }
+    if (remoteCloseError?.uncleanSftpChannel) throw remoteCloseError;
     if (!failed && !transfer.cancelled && remoteCloseError) {
       if (disposeChannel) {
         const error = new Error("The isolated SFTP channel failed while closing", { cause: remoteCloseError });
@@ -5459,6 +5577,21 @@ async function downloadFileResumableFast(
  * Hash helpers may still use createReadStream for content verification only.
  */
 async function downloadFile(
+  remotePath,
+  localPath,
+  client,
+  fileSize,
+  transfer,
+  sendProgress,
+  encoding = "utf-8",
+  runCancelablePreflight = async (operation) => operation(),
+) {
+  return withSequentialSftpTransferSlot(client, transfer, () => downloadFileOnChannel(
+    remotePath, localPath, client, fileSize, transfer, sendProgress, encoding, runCancelablePreflight,
+  ));
+}
+
+async function downloadFileOnChannel(
   remotePath,
   localPath,
   client,
@@ -5733,6 +5866,13 @@ async function downloadFile(
         await finishSuccessfulDownload();
         return;
       } catch (err) {
+        if (err?.uncleanSftpChannel) {
+          // Sequential peers may still own an open handle after CLOSE failed.
+          // Do not hand that cached channel to later browse/transfer work, or
+          // discard a replacement channel that another operation installed.
+          if (client.sftp === sftp) abandonWedgedVerificationSftpChannel(client);
+          throw err;
+        }
         if (transfer.cancelled) throw err;
         // noTransferFallback means "do not keep using this dead channel".
         // A stale shared browse channel can still recover on one fresh
@@ -6355,7 +6495,7 @@ async function startTransferNow(event, payload, onProgress) {
     return transfer.sourceFingerprintPromise;
   };
 
-  const verifyResumeContent = async (bytes, createSourceHash, createStagedHash) => {
+  const verifyResumeContent = async (bytes, createSourceHash, createStagedHash, remoteClient = null) => {
     if (!bytes) return;
     const previousPhase = transfer.phase;
     const verificationStartedAt = Date.now();
@@ -6385,7 +6525,7 @@ async function startTransferNow(event, payload, onProgress) {
     transfer.phase = "verifying";
     publishVerificationProgress(true);
     try {
-      await runTransferAbortableOperation(transfer, (signal) => assertMatchingResumeContent(
+      const verify = () => runTransferAbortableOperation(transfer, (signal) => assertMatchingResumeContent(
         createSourceHash({
           signal,
           onProgress(value) {
@@ -6401,6 +6541,11 @@ async function startTransferNow(event, payload, onProgress) {
           },
         }),
       ));
+      // Resume prefix reads run before the body wrapper. Acquire separately,
+      // before installing the I/O abort hook, so queued cancellation works and
+      // no source/target channel is held while acquiring another channel.
+      if (remoteClient) await withSequentialSftpTransferSlot(remoteClient, transfer, verify);
+      else await verify();
       publishVerificationProgress(true);
     } finally {
       transfer.phase = previousPhase || "transferring";
@@ -6412,8 +6557,7 @@ async function startTransferNow(event, payload, onProgress) {
   };
 
   const sendComplete = () => {
-    sender.send("netcatty:transfer:complete", { transferId });
-    broadcastGlobalTransferEvent({
+    const completedEvent = {
       type: "completed",
       transferId,
       endedAt: Date.now(),
@@ -6422,7 +6566,10 @@ async function startTransferNow(event, payload, onProgress) {
       parentTaskId: transfer.parentTaskId,
       directoryEntryIndex: transfer.directoryEntryIndex,
       directoryEntryIdentity: transfer.directoryEntryIdentity,
-    });
+      ...(transfer.warning ? { warning: transfer.warning } : {}),
+    };
+    sender.send("netcatty:transfer:complete", completedEvent);
+    broadcastGlobalTransferEvent(completedEvent);
     cleanupTransfer();
     forgetLocalUploadAcknowledgedPrefix(transferId);
   };
@@ -6597,7 +6744,12 @@ async function startTransferNow(event, payload, onProgress) {
     }
 
     if (transfer.resumable && transfer.sourceFingerprint) {
-      await transfer.verifySourceFingerprint(transfer.sourceFingerprint);
+      const verify = () => transfer.verifySourceFingerprint(transfer.sourceFingerprint);
+      // Initial remote identity reads also precede the download/upload body.
+      // Do not put this lock inside shared hash helpers: body verification and
+      // soft-resume paths can already own the channel.
+      if (sourceClient) await withSequentialSftpTransferSlot(sourceClient, transfer, verify);
+      else await verify();
     }
 
     sendProgress(transfer.checkpointBytes, fileSize, { force: true });
@@ -6621,7 +6773,7 @@ async function startTransferNow(event, payload, onProgress) {
       const resolvedTargetEncoding = resolveEncodingForRequest(targetSftpId, targetEncoding);
       let existingRemoteMode = null;
       const deterministicStagePath = buildRemoteTransferStagePath(targetPath, transferId);
-      await runRemoteUploadTransaction(client, sourcePath, targetPath, {
+      const uploadResult = await runRemoteUploadTransaction(client, sourcePath, targetPath, {
         encoding: resolvedTargetEncoding,
         expectedSize: fileSize,
         stagedPath: transfer.resumable ? deterministicStagePath : undefined,
@@ -6709,6 +6861,7 @@ async function startTransferNow(event, payload, onProgress) {
           );
         },
       });
+      transfer.warning = uploadResult?.warning;
       transfer.stagedRemote = null;
       await restoreRemoteUploadModeBestEffort(
         client,
@@ -6755,6 +6908,7 @@ async function startTransferNow(event, payload, onProgress) {
             options,
           ),
           (options) => hashLocalPrefix(downloadTargetPath, verifyBytes, options),
+          client,
         );
       }
       const download = stageLocalDownload
@@ -7022,6 +7176,7 @@ async function startTransferNow(event, payload, onProgress) {
                 options,
               ),
               (options) => hashLocalPrefix(tempPath, verifyBytes, options),
+              sourceClient,
             );
           }
           const downloadProgress = (transferred, reportedTotal, options = {}) => {
@@ -7116,7 +7271,7 @@ async function startTransferNow(event, payload, onProgress) {
         const resolvedTargetEncoding = resolveEncodingForRequest(targetSftpId, targetEncoding);
         let existingRemoteMode = null;
         const deterministicStagePath = buildRemoteTransferStagePath(targetPath, transferId);
-        await runRemoteUploadTransaction(targetClient, tempPath, targetPath, {
+        const uploadResult = await runRemoteUploadTransaction(targetClient, tempPath, targetPath, {
           encoding: resolvedTargetEncoding,
           expectedSize: fileSize,
           stagedPath: transfer.resumable ? deterministicStagePath : undefined,
@@ -7171,6 +7326,7 @@ async function startTransferNow(event, payload, onProgress) {
                   verifyBytes,
                   options,
                 ),
+                targetClient,
               );
             }
             await uploadFile(
@@ -7191,6 +7347,7 @@ async function startTransferNow(event, payload, onProgress) {
             );
           },
         });
+        transfer.warning = uploadResult?.warning;
         transfer.stagedRemote = null;
         await restoreRemoteUploadModeBestEffort(
           targetClient,
@@ -7221,7 +7378,7 @@ async function startTransferNow(event, payload, onProgress) {
     });
     sendComplete();
 
-    return { transferId, totalBytes: fileSize };
+    return { transferId, totalBytes: fileSize, ...(transfer.warning ? { warning: transfer.warning } : {}) };
   } catch (err) {
     const failureMessage = err?.message || String(err);
     if (

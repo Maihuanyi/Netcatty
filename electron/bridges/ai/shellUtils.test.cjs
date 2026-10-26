@@ -8,6 +8,7 @@ const {
   extractTrailingIdlePrompt,
   formatSyntheticEcho,
   getFreshIdlePrompt,
+  getVisibleIdlePrompt,
   isDefaultPowerShellPromptLine,
   isDefaultCmdPromptLine,
   isDefaultPosixPromptLine,
@@ -133,12 +134,89 @@ test("isDefaultCmdPromptLine matches drive-letter cmd prompts only", () => {
 
 test("isDefaultPosixPromptLine matches classic user@host prompts", () => {
   assert.equal(isDefaultPosixPromptLine("alice@host:~$"), true);
+  assert.equal(isDefaultPosixPromptLine("user@host:~$"), true);
   assert.equal(isDefaultPosixPromptLine("alice@wsl:/mnt/c$"), true);
   assert.equal(isDefaultPosixPromptLine("root@box:/#"), true);
+  assert.equal(isDefaultPosixPromptLine("[opc@instance-20260905-1821 ~]$"), true);
+  assert.equal(isDefaultPosixPromptLine("[opc@instance-20260905-1821 ~]$ "), true);
+  assert.equal(isDefaultPosixPromptLine("[root@host ~]#"), true);
+  assert.equal(isDefaultPosixPromptLine("[user@host]$"), true);
+  assert.equal(isDefaultPosixPromptLine("[user@host My Project]$"), true);
+  assert.equal(isDefaultPosixPromptLine("[user@host My Project]$ "), true);
+  assert.equal(isDefaultPosixPromptLine("[user@host My [Project]]$"), true);
+  assert.equal(isDefaultPosixPromptLine("[user@host My [Project]]$ "), true);
   assert.equal(isDefaultPosixPromptLine("root@host ~#"), false);
   assert.equal(isDefaultPosixPromptLine("PS C:\\Users\\alice>"), false);
   assert.equal(isDefaultPosixPromptLine("C:\\Users\\alice>"), false);
   assert.equal(isDefaultPosixPromptLine(""), false);
+});
+
+test("isDefaultPosixPromptLine matches Alpine host:path prompts without a username", () => {
+  for (const prompt of [
+    "localhost:~#",
+    "localhost:~# ",
+    "alpine:~$ ",
+    "alpine-host:~/projects$",
+    "alpine-host:/# ",
+    "alpine.example:/srv/My Project$ ",
+  ]) {
+    assert.equal(isDefaultPosixPromptLine(prompt), true, prompt);
+  }
+});
+
+test("Alpine prompt recognition rejects output and partially entered commands", () => {
+  for (const line of [
+    "#",
+    "$",
+    "status: ready#",
+    "progress:100%$",
+    ":~#",
+    "alpine:#",
+    "alpine:relative$",
+    "alpine:~user$",
+    "localhost:~# printf busy",
+    "localhost:/tmp# printf busy#",
+    "alpine:/tmp$ printf busy$",
+  ]) {
+    assert.equal(isDefaultPosixPromptLine(line), false, line);
+    assert.equal(extractTrailingIdlePrompt(`welcome\r\n${line}`), "", line);
+  }
+});
+
+test("extracts an Alpine idle prompt while preserving its trailing whitespace", () => {
+  assert.equal(
+    extractTrailingIdlePrompt("Welcome to Alpine!\r\n\x1b[32mlocalhost:~# \x1b[0m"),
+    "localhost:~# ",
+  );
+  assert.equal(extractTrailingIdlePrompt("alpine:/srv$ "), "alpine:/srv$ ");
+  assert.equal(extractTrailingIdlePrompt("localhost:~# \r\n"), "");
+});
+
+test("extracts a trailing RHEL-family bracketed idle prompt", () => {
+  // Oracle Linux / RHEL / CentOS / Fedora default PS1 is `[\u@\h \W]\$ `.
+  // Trailing space must round-trip, same as the PowerShell prompt capture.
+  assert.equal(
+    extractTrailingIdlePrompt("[opc@instance-20260905-1821 ~]$ "),
+    "[opc@instance-20260905-1821 ~]$ ",
+  );
+  assert.equal(
+    extractTrailingIdlePrompt("Last login: Fri Oct 24\r\n[root@host ~]#"),
+    "[root@host ~]#",
+  );
+  assert.equal(
+    extractTrailingIdlePrompt("welcome\r\nuser@host:~$ "),
+    "user@host:~$ ",
+  );
+  assert.equal(
+    extractTrailingIdlePrompt("welcome\r\n[user@host My Project]$ "),
+    "[user@host My Project]$ ",
+  );
+  assert.equal(
+    extractTrailingIdlePrompt("welcome\r\n[user@host My [Project]]$ "),
+    "[user@host My [Project]]$ ",
+  );
+  // Unbracketed space form is still not a recognized default prompt.
+  assert.equal(extractTrailingIdlePrompt("welcome\r\nroot@host ~#"), "");
 });
 
 test("isPlausibleCliVersionOutput rejects stack traces and file URLs", () => {
@@ -672,6 +750,95 @@ test("getFreshIdlePrompt returns empty string when the session has no cached pro
     getFreshIdlePrompt({ lastIdlePrompt: "", _promptTrackTail: "anything" }),
     "",
   );
+});
+
+test("tracks split Alpine prompts and expires them while the shell is busy", () => {
+  const session = {};
+  assert.equal(trackSessionIdlePrompt(session, "Welcome to Alpine!\r\nlocalhost:"), "");
+  assert.equal(trackSessionIdlePrompt(session, "~# "), "localhost:~# ");
+  assert.equal(getFreshIdlePrompt(session), "localhost:~# ");
+
+  assert.equal(trackSessionIdlePrompt(session, "printf busy"), "");
+  assert.equal(getFreshIdlePrompt(session), "");
+
+  trackSessionIdlePrompt(session, "\r\nbusy\r\nlocalhost:/srv# ");
+  assert.equal(getFreshIdlePrompt(session), "localhost:/srv# ");
+  trackSessionIdlePrompt(session, "printf working\r\nworking...");
+  assert.equal(getFreshIdlePrompt(session), "");
+});
+
+test("trackSessionIdlePrompt and getFreshIdlePrompt accept an Oracle/RHEL bracketed bash prompt", () => {
+  const session = {};
+  trackSessionIdlePrompt(session, "Last login...\r\n[opc@instance-20260905-1821 ~]$ ");
+  assert.equal(session.lastIdlePrompt, "[opc@instance-20260905-1821 ~]$ ");
+  assert.equal(getFreshIdlePrompt(session), "[opc@instance-20260905-1821 ~]$ ");
+
+  const rootSession = {};
+  trackSessionIdlePrompt(rootSession, "[root@host ~]#");
+  assert.equal(getFreshIdlePrompt(rootSession), "[root@host ~]#");
+
+  const classic = {};
+  trackSessionIdlePrompt(classic, "user@host:~$ ");
+  assert.equal(getFreshIdlePrompt(classic), "user@host:~$ ");
+
+  const unbracketed = {};
+  assert.equal(trackSessionIdlePrompt(unbracketed, "root@host ~#"), "");
+  assert.equal(getFreshIdlePrompt(unbracketed), "");
+
+  const spacedPath = {};
+  trackSessionIdlePrompt(spacedPath, "Last login...\r\n[user@host My Project]$ ");
+  assert.equal(spacedPath.lastIdlePrompt, "[user@host My Project]$ ");
+  assert.equal(getFreshIdlePrompt(spacedPath), "[user@host My Project]$ ");
+
+  const bracketedPath = {};
+  trackSessionIdlePrompt(bracketedPath, "Last login...\r\n[user@host My [Project]]$ ");
+  assert.equal(bracketedPath.lastIdlePrompt, "[user@host My [Project]]$ ");
+  assert.equal(getFreshIdlePrompt(bracketedPath), "[user@host My [Project]]$ ");
+});
+
+test("visible idle prompt survives a PSReadLine erase that leaves the raw tail dirty", () => {
+  // PSReadLine echoes the pending-input clear prefix (`ggd2147483647d` / `i`),
+  // then homes the cursor and erases those keys with CSI. stripAnsi drops the
+  // erase but keeps the keys, so the cached prompt no longer matches the tail.
+  // The screen is still an idle default PowerShell prompt (#3927).
+  const session = {};
+  const prompt = "PS C:\\Users\\alice> ";
+  trackSessionIdlePrompt(session, `Windows PowerShell\r\n${prompt}ggd2147483647d\x1b[20G\x1b[0J`);
+  assert.equal(getFreshIdlePrompt(session), "");
+  assert.equal(extractTrailingIdlePrompt(session._promptTrackTail), "");
+  assert.equal(getVisibleIdlePrompt(session), prompt);
+
+  const backspaced = {};
+  trackSessionIdlePrompt(backspaced, `${prompt}\x08`);
+  assert.equal(getFreshIdlePrompt(backspaced), "");
+  assert.equal(getVisibleIdlePrompt(backspaced), prompt);
+
+  const crHomed = {};
+  trackSessionIdlePrompt(crHomed, `${prompt}\r`);
+  assert.equal(getFreshIdlePrompt(crHomed), "");
+  assert.equal(getVisibleIdlePrompt(crHomed), prompt);
+});
+
+test("visible idle prompt stays empty for pending input, a following line, and an unrecognized prompt", () => {
+  const pending = {};
+  trackSessionIdlePrompt(pending, "PS C:\\Users\\alice> Write-Output ok");
+  assert.equal(getFreshIdlePrompt(pending), "");
+  assert.equal(getVisibleIdlePrompt(pending), "");
+
+  const movedOn = {};
+  trackSessionIdlePrompt(movedOn, "PS C:\\Users\\alice> \r\n");
+  assert.equal(getVisibleIdlePrompt(movedOn), "");
+
+  const custom = {};
+  trackSessionIdlePrompt(custom, "PS C:\\Users\\alice>\r\nexit\r\n❯ ");
+  assert.equal(getVisibleIdlePrompt(custom), "");
+
+  const fullscreen = {};
+  trackSessionIdlePrompt(fullscreen, "PS C:\\Users\\alice> \x1b[?1049h\x1b[Hvim");
+  assert.equal(getVisibleIdlePrompt(fullscreen), "");
+
+  assert.equal(getVisibleIdlePrompt({ _promptTrackTail: "" }), "");
+  assert.equal(getVisibleIdlePrompt(null), "");
 });
 
 test("getFreshIdlePrompt and trackSessionIdlePrompt round-trip through a real PTY-like flow", () => {

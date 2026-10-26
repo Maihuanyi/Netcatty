@@ -3,7 +3,7 @@
 // runs under `with (ctx)` where bare `require` resolves to ctx.require
 // (based in electron/bridges/). Requiring here keeps the path unambiguous.
 const { emitTerminalSessionData } = require("../emitTerminalSessionData.cjs");
-const { formatSyntheticEcho } = require("../ai/shellUtils.cjs");
+const { formatSyntheticEcho, getVisibleIdlePrompt } = require("../ai/shellUtils.cjs");
 const { clearSessionFlowState } = require("../terminalFlowAck.cjs");
 const { remoteDisallowsExecChannelProbe, sessionDisallowsExtraSshChannel, ensureSessionShellKindForExec } = require("../ai/sessionShellKind.cjs");
 const defaultAiPrivacyService = require("../../shared/aiPrivacyService.cjs");
@@ -196,6 +196,7 @@ function registerCattyExecHandlers(ctx) {
             return { ok: false, error: `Command blocked by safety policy. Pattern: ${safety.matchedPattern}` };
           }
           return execViaPty(ptyStream, command, {
+            beforeInput: beforeExecute,
             onInterrupt: () => clearSessionFlowState(session),
             stripMarkers: true,
             trackForCancellation: mcpServerBridge.activePtyExecs,
@@ -215,6 +216,8 @@ function registerCattyExecHandlers(ctx) {
             },
             chatSessionId,
             expectedPrompt: getFreshIdlePrompt(session),
+            getReadyPrompt: typeof session._promptTrackTail === "string"
+              ? () => getFreshIdlePrompt(session) || getVisibleIdlePrompt(session) : undefined,
             typedInput: true,
             echoCommand: (rawCommand) => {
               const contents = electronModule?.webContents?.fromId?.(session.webContentsId);
